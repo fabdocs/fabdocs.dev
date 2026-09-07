@@ -1,8 +1,11 @@
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import './global.css';
 import { Inter } from 'next/font/google';
+import Script from 'next/script';
 import type { Metadata } from 'next';
 import { appDescription, appName, siteUrl } from '@/lib/shared';
+
+const cfBeaconToken = process.env.NEXT_PUBLIC_CF_BEACON_TOKEN;
 
 const inter = Inter({
   subsets: ['latin'],
@@ -44,6 +47,13 @@ export default function Layout({ children }: LayoutProps<'/'>) {
     <html lang="en" className={inter.className} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
         <RootProvider>{children}</RootProvider>
+        {cfBeaconToken ? (
+          <Script
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            strategy="afterInteractive"
+            data-cf-beacon={`{"token": "${cfBeaconToken}"}`}
+          />
+        ) : null}
       </body>
     </html>
   );

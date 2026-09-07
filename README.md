@@ -77,6 +77,21 @@ so CI deploys are the reliable path. `wrangler.jsonc` holds the Worker config
 Then point the `fabdocs.dev` custom domain at the Worker under
 **Settings → Domains & Routes**.
 
+## SEO & analytics
+
+- `src/app/sitemap.ts` and `src/app/robots.ts` generate `/sitemap.xml` and
+  `/robots.txt` from the docs source. Submit the sitemap in Google Search
+  Console + Bing Webmaster Tools.
+- JSON-LD: `Organization` + `WebSite` on the home page, `TechArticle` +
+  `BreadcrumbList` on every docs page (`src/lib/seo.ts`, `src/components/json-ld.tsx`).
+- Per-page canonical URLs, OpenGraph, Twitter cards, and generated OG images
+  (`/og/docs/**`).
+- **Analytics** is off until you set `NEXT_PUBLIC_CF_BEACON_TOKEN`. Get the token
+  from Cloudflare dashboard → your account → **Web Analytics → Add a site** (or
+  the existing `fabdocs.dev` site) → copy the token from the JS snippet. Add it
+  as an environment variable on the `fabdocs-dev` Worker (Settings → Variables)
+  and redeploy. The beacon script then loads from `src/app/layout.tsx`.
+
 ## Notes
 
 - `next.config.mjs` rewrites `/docs/**/*.md` → the Fumadocs Markdown route so

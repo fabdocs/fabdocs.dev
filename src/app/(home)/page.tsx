@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -9,6 +10,12 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { appName } from '@/lib/shared';
+import { JsonLd } from '@/components/json-ld';
+import { organizationJsonLd, websiteJsonLd } from '@/lib/seo';
+
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
 
 const sections = [
   {
@@ -60,6 +67,7 @@ const codeSample = `# Idempotent by default — re-running is always safe
 export default function HomePage() {
   return (
     <main className="flex flex-1 flex-col">
+      <JsonLd data={[organizationJsonLd, websiteJsonLd]} />
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-fd-border">
         <div

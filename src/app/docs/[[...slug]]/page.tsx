@@ -12,6 +12,8 @@ import { getMDXComponents } from '@/components/mdx';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
 import { gitConfig } from '@/lib/shared';
+import { JsonLd } from '@/components/json-ld';
+import { articleJsonLd, breadcrumbJsonLd } from '@/lib/seo';
 
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
@@ -21,8 +23,26 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const MDX = page.data.body;
   const markdownUrl = getPageMarkdownUrl(page).url;
 
+  const crumbs = [{ name: 'Documentation', url: '/docs' }];
+  if (params.slug && params.slug.length > 1) {
+    const parent = source.getPage([params.slug[0]]);
+    if (parent) crumbs.push({ name: parent.data.title, url: parent.url });
+  }
+  if (page.url !== '/docs') crumbs.push({ name: page.data.title, url: page.url });
+
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
+      <JsonLd
+        data={[
+          articleJsonLd({
+            title: page.data.title,
+            description: page.data.description,
+            url: page.url,
+            imageUrl: getPageImageUrl(page).url,
+          }),
+          breadcrumbJsonLd(crumbs),
+        ]}
+      />
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
@@ -56,7 +76,18 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
   return {
     title: page.data.title,
     description: page.data.description,
+    alternates: { canonical: page.url },
     openGraph: {
+      type: 'article',
+      url: page.url,
+      title: page.data.title,
+      description: page.data.description,
+      images: getPageImageUrl(page).url,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: page.data.title,
+      description: page.data.description,
       images: getPageImageUrl(page).url,
     },
   };
