@@ -1,0 +1,72 @@
+---
+title: VACUUM & retention
+description: Reclaim storage without breaking time travel, Direct Lake, or in-flight readers.
+---
+
+## What VACUUM does
+
+`VACUUM` deletes Parquet files that are no longer referenced by the current
+Delta version **and** are older than the retention threshold. It does not touch
+the `_delta_log`. After VACUUM you can still *read* the current table; you lose
+the ability to *time travel* to versions whose files were removed.
+
+## CU impact
+
+Small — it is mostly file listing and delete calls. The savings are on
+**OneLake storage billing**, which is charged per GB-month. Tables with heavy
+`MERGE`/`UPDATE` churn can carry 5–20× their live size in tombstoned files.
+
+## The safe procedure
+
+```python
+from delta.tables import DeltaTable
+
+dt = DeltaTable.forName(spark, "sales.orders")
+
+# 1. See what would be removed — dry run, deletes nothing
+dt.vacuum(retentionHours=168)  # default is 168h / 7 days
+
+# Fabric prints the candidate count; to actually preview paths:
+spark.sql("VACUUM sales.orders RETAIN 168 HOURS DRY RUN").show(truncate=False)
+```
+
+<Callout type="warn">
+Never lower retention below the longest-running reader against the table. A
+Spark job that started 3 hours ago holds references to files as they were at
+job start; VACUUM with `RETAIN 1 HOURS` can delete them mid-scan and the job
+fails with `FileNotFoundException`.
+</Callout>
+
+## Retention policy by table type
+
+| Table type | `RETAIN` | Why |
+| --- | --- | --- |
+| Dimensional / SCD | 168–720 h | Auditors ask for "what did this look like last month" |
+| High-churn fact (MERGE-heavy) | 48–72 h | Storage cost dominates; time travel rarely used |
+| Streaming sink | 24–48 h | Micro-batches create files fast |
+| Regulated / financial | Set by policy, often 2555 h (365 d) | Compliance overrides cost |
+
+Set it once as a table property so scheduled VACUUM jobs stay consistent:
+
+```sql
+ALTER TABLE sales.orders
+SET TBLPROPERTIES ('delta.deletedFileRetentionDuration' = 'interval 3 days');
+```
+
+## Disabling the safety check
+
+Fabric blocks `RETAIN` below 168 hours unless you opt out:
+
+```python
+spark.conf.set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
+```
+
+Only do this in a dedicated maintenance job, and re-enable it afterward.
+
+## Interaction with Direct Lake
+
+Direct Lake semantic models reframe against the current version. VACUUM of old
+versions does not affect them. But if you `VACUUM` and then a Power BI query
+was mid-reframe against a version you just cleared, it falls back to DirectQuery
+until the next reframe — a latency spike, not an error. Schedule VACUUM in the
+same off-peak window as `OPTIMIZE`.

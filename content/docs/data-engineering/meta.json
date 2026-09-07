@@ -1,0 +1,13 @@
+{
+  "title": "Data Engineering",
+  "description": "Notebooks, PySpark, and the execution engine.",
+  "icon": "Boxes",
+  "root": true,
+  "pages": [
+    "index",
+    "pyspark-patterns",
+    "native-execution-engine",
+    "resource-profiles",
+    "runtime-upgrades"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "index",
+    "---Core Documentation---",
+    "onelake",
+    "data-engineering",
+    "cicd",
+    "governance",
+    "---Applied---",
+    "tools",
+    "playbooks"
+  ]
+}

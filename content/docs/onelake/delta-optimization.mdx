@@ -1,0 +1,83 @@
+---
+title: Delta table optimization
+description: Compaction, target file size, partitioning vs. Z-order, and a maintenance schedule that fits inside your capacity.
+---
+
+## CU impact
+
+`OPTIMIZE` is a Spark job — you pay CUs to run it. The return is fewer, larger
+files, which cuts CU on *every* downstream read (Spark, SQL endpoint, Direct
+Lake reframing). On tables queried more than a few times a day, nightly
+compaction pays for itself within a week.
+
+## The small-file problem
+
+Streaming writes, frequent `MERGE`, and per-batch appends produce hundreds of
+1–10 MB Parquet files. Query planning then spends more time listing and opening
+files than reading them. Target **128–256 MB** per file.
+
+```python
+from delta.tables import DeltaTable
+
+dt = DeltaTable.forName(spark, "sales.orders")
+
+# Bin-compaction only — rewrites small files, leaves big ones alone
+dt.optimize().executeCompaction()
+```
+
+### Set the target file size explicitly
+
+```python
+spark.sql("""
+  ALTER TABLE sales.orders
+  SET TBLPROPERTIES ('delta.targetFileSize' = '134217728')  -- 128 MB
+""")
+```
+
+For tables that feed **Direct Lake**, keep row groups aligned: a file size of
+128 MB with the default 1M-row group size keeps Power BI transcoding cheap.
+
+## Partitioning vs. Z-order vs. liquid clustering
+
+| Technique | Use when | Avoid when |
+| --- | --- | --- |
+| **Partitioning** | Low-cardinality column, always filtered on it (e.g. `event_date`), partitions > 1 GB | High cardinality — creates the small-file problem you were avoiding |
+| **Z-order** | 2–4 columns used together in filters, moderate cardinality | The columns change often; Z-order must be re-applied after writes |
+| **Liquid clustering** | You want partition-like skipping without committing to a physical layout | Runtime < 1.3 / Spark 3.5 (not available) |
+
+```python
+# Z-order rewrites data files — schedule it, don't run it per-batch
+dt.optimize().executeZOrderBy("customer_id", "product_id")
+```
+
+```sql
+-- Liquid clustering (Fabric Runtime 1.3+)
+CREATE TABLE sales.orders (...)
+USING DELTA
+CLUSTER BY (customer_id, order_date);
+```
+
+## A maintenance schedule that fits a capacity
+
+1. **Classify tables by write pattern** — hot (streaming / frequent MERGE),
+   warm (daily batch), cold (rarely written).
+2. **Compact hot tables daily, off-peak** — one `executeCompaction()` per hot
+   table, scheduled 02:00–04:00 local when interactive load is lowest.
+3. **Z-order warm tables weekly** — only the tables where query plans show poor
+   data skipping (low `numFilesPruned`).
+4. **VACUUM after compaction** — see
+   [VACUUM & retention](/docs/onelake/vacuum-and-retention). Run it *after*
+   compaction so the newly-orphaned small files become eligible.
+
+## Verify it worked
+
+```python
+detail = spark.sql("DESCRIBE DETAIL sales.orders").first()
+print(detail["numFiles"], detail["sizeInBytes"] / detail["numFiles"] / 1e6, "MB avg")
+
+# History shows the OPTIMIZE metrics
+dt.history(1).select("operationMetrics").show(truncate=False)
+```
+
+Look for `numFilesRemoved` >> `numFilesAdded` and an average file size climbing
+toward your target.

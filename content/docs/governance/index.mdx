@@ -1,0 +1,33 @@
+---
+title: Governance & Security
+description: Patterns for OneLake security, workspace identity, and audit logging that pass an enterprise compliance review.
+icon: ShieldCheck
+---
+
+Governance in Fabric is layered: tenant settings, workspace roles, item
+permissions, and — newest and most powerful — **OneLake security** for
+row/column/table-level control that every engine honors.
+
+## Pages
+
+<Cards>
+  <Card title="OneLake security" href="/docs/governance/onelake-security" description="RLS, CLS, and table-level roles enforced across Spark, SQL, and Direct Lake." />
+  <Card title="Workspace identity" href="/docs/governance/workspace-identity" description="Trusted access to storage without stored secrets or a service principal." />
+  <Card title="Audit logs" href="/docs/governance/audit-logs" description="Where Fabric activity lands, retention, and pulling it for SIEM / compliance." />
+</Cards>
+
+## The layers, top to bottom
+
+| Layer | Controls | Set by |
+| --- | --- | --- |
+| Tenant settings | Who can use SPNs, create capacities, share externally | Fabric admin |
+| Capacity | Which workspaces run where; surge protection | Capacity admin |
+| Workspace roles | Admin / Member / Contributor / Viewer | Workspace admin |
+| Item permissions | Per-report / per-model sharing | Item owner |
+| **OneLake security** | Row / column / table access on lakehouse data | Data owner |
+
+<Callout type="info">
+Design top-down but review bottom-up: an auditor asks "who can read this table",
+and the answer is the *intersection* of every layer. Document the whole chain
+for your regulated datasets.
+</Callout>

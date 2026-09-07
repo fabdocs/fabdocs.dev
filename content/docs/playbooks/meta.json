@@ -1,0 +1,12 @@
+{
+  "title": "Migration Playbooks",
+  "description": "Step-by-step conversions into Fabric.",
+  "icon": "Map",
+  "root": true,
+  "pages": [
+    "index",
+    "from-databricks",
+    "from-snowflake",
+    "from-ssis"
+  ]
+}

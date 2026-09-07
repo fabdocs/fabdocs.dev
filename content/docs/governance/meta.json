@@ -1,0 +1,12 @@
+{
+  "title": "Governance & Security",
+  "description": "OneLake security, identity, and audit.",
+  "icon": "ShieldCheck",
+  "root": true,
+  "pages": [
+    "index",
+    "onelake-security",
+    "workspace-identity",
+    "audit-logs"
+  ]
+}

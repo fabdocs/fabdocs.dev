@@ -1,0 +1,117 @@
+---
+title: From Snowflake
+description: Move warehouses, roles, tasks, streams, and SnowSQL to Fabric Warehouse and OneLake.
+---
+
+## What maps to what
+
+| Snowflake | Fabric | Notes |
+| --- | --- | --- |
+| Database / schema | Warehouse / schema, or Lakehouse | Pick Warehouse for T-SQL ELT, Lakehouse for Spark |
+| Virtual warehouse (XS–4XL) | Capacity CUs (auto-allocated) | No manual warehouse sizing; see the [CU calculator](/docs/tools/cu-cost-calculator) |
+| Role hierarchy + grants | Workspace roles + [OneLake security](/docs/governance/onelake-security) | Flatter model — plan the mapping |
+| Task / task graph | Data pipeline schedule | |
+| Stream (CDC) | Watermark column + `MERGE`, or Structured Streaming | No native stream object |
+| Stage (int/ext) | Lakehouse `Files/` or a [shortcut](/docs/onelake/shortcuts) | |
+| `COPY INTO` | Pipeline Copy activity, or `COPY INTO` (T-SQL, supported in Warehouse) | |
+| Snowpark | PySpark in a notebook | |
+| Time Travel (`AT`/`BEFORE`) | Delta time travel (`VERSION AS OF`) | Retention governed by [VACUUM](/docs/onelake/vacuum-and-retention) |
+| Zero-copy clone | `CREATE TABLE ... SHALLOW CLONE` (Delta) or shortcut | |
+
+## Procedure
+
+<Steps>
+
+<Step>
+
+### Choose the engine per workload
+
+T-SQL-heavy ELT with stored procedures → **Fabric Warehouse**. Python/Spark
+transforms, ML, semi-structured → **Lakehouse**. Many estates use both, sharing
+OneLake.
+
+</Step>
+
+<Step>
+
+### Export schema and translate DDL
+
+`GET_DDL` per object. Translate types: `NUMBER(p,s)` → `DECIMAL(p,s)`,
+`VARIANT` → `VARCHAR(MAX)` holding JSON (parse with `JSON_VALUE`/`OPENJSON`) or
+a Spark struct, `TIMESTAMP_NTZ` → `DATETIME2`, `BOOLEAN` → `BIT`.
+
+</Step>
+
+<Step>
+
+### Land the data
+
+One-off history: unload to Parquet in ADLS (`COPY INTO ... FILE_FORMAT=parquet`),
+then shortcut or Copy into OneLake. Ongoing: pipeline Copy with a watermark, or
+CDC from the source system into bronze.
+
+</Step>
+
+<Step>
+
+### Rebuild transforms
+
+Stored procedures → T-SQL stored procedures in the Warehouse (mostly portable) or
+notebooks. Replace Snowflake-specific functions:
+
+```sql
+-- Snowflake            -> Fabric Warehouse (T-SQL)
+IFF(cond, a, b)          -> IIF(cond, a, b)
+NVL / ZEROIFNULL         -> ISNULL(x, 0)
+TO_VARCHAR(d, 'fmt')     -> FORMAT(d, 'fmt')
+DATEADD('day', 1, d)     -> DATEADD(day, 1, d)
+LISTAGG(x, ',')          -> STRING_AGG(x, ',')
+LATERAL FLATTEN          -> CROSS APPLY OPENJSON(...)
+QUALIFY row_number()...  -> subquery / CTE with WHERE rn = 1
+```
+
+</Step>
+
+<Step>
+
+### Convert tasks
+
+Root task → pipeline with a schedule trigger. Child tasks → downstream
+activities. `SYSTEM$STREAM_HAS_DATA` gates → a lookup activity checking a
+watermark table.
+
+</Step>
+
+<Step>
+
+### Map security
+
+Build the role → Entra group mapping. Snowflake's role inheritance flattens:
+enumerate effective grants per role and recreate them as OneLake security roles
+and workspace roles.
+
+</Step>
+
+<Step>
+
+### Parallel run and cut over
+
+Same slice, both platforms, one business cycle. Compare row counts and aggregate
+checksums nightly.
+
+</Step>
+
+</Steps>
+
+<Callout type="warn">
+**`VARIANT` is the migration's long pole.** Decide early per column: keep as JSON
+text and query with `OPENJSON`, or shred into typed columns during ingest. The
+second is more work now and far cheaper to query forever.
+</Callout>
+
+## Cost framing
+
+Snowflake bills credits per warehouse-second; Fabric bills CUs against a fixed
+capacity you can smooth across workloads. Consolidating many small Snowflake
+warehouses onto one Fabric capacity is often where the savings are — model it in
+the [CU calculator](/docs/tools/cu-cost-calculator) before committing to a SKU.

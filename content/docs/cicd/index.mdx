@@ -1,0 +1,42 @@
+---
+title: CI/CD & Git
+description: Treat Fabric workspaces as deployable artifacts — Git-backed, promoted through environments, parameterized per stage.
+icon: GitBranch
+---
+
+The goal: no human clicks "publish" in a production workspace. Changes land in
+Git, CI validates them, and a pipeline promotes them dev → test → prod with
+stage-specific parameters injected automatically.
+
+## Pages
+
+<Cards>
+  <Card title="Git integration" href="/docs/cicd/git-integration" description="Workspace ↔ repo binding, folder layout, what is and isn't serializable." />
+  <Card title="Deployment pipelines" href="/docs/cicd/deployment-pipelines" description="Stages, deployment rules, item bindings, and gating promotion." />
+  <Card title="Variable libraries" href="/docs/cicd/variable-libraries" description="Per-stage values without deployment rules — connections, paths, capacities." />
+  <Card title="GitHub Actions for Fabric" href="/docs/cicd/github-actions" description="fabric-cli in CI: validate on PR, deploy on merge, with a service principal." />
+</Cards>
+
+## Reference topology
+
+<Files>
+  <Folder name="workspaces" defaultOpen>
+    <Folder name="dev" defaultOpen>
+      <File name="Lakehouse.Lakehouse" />
+      <File name="Ingest.Notebook" />
+      <File name="Transform.Notebook" />
+      <File name="Orchestrate.DataPipeline" />
+      <File name="Analytics.SemanticModel" />
+    </Folder>
+  </Folder>
+  <Folder name=".github/workflows">
+    <File name="pr-validate.yml" />
+    <File name="deploy.yml" />
+  </Folder>
+  <File name="parameter.yml" />
+</Files>
+
+- **dev** workspace is Git-connected. Engineers work in feature branches.
+- **test** and **prod** receive changes only via the deployment pipeline.
+- `parameter.yml` holds deployment rules; connection-level values move to
+  [variable libraries](/docs/cicd/variable-libraries).

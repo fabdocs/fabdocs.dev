@@ -1,0 +1,38 @@
+---
+title: Start here
+description: What fabdocs.dev is, who it is for, and how to navigate the manual.
+icon: Compass
+---
+
+Official Microsoft documentation tells you **what** every Fabric feature is.
+`fabdocs.dev` is about **how** to run it in production — how to build, deploy,
+govern, and scale lakehouses, notebooks, and pipelines without torching your
+capacity budget.
+
+## Who this is for
+
+- **Data engineers** taming lakehouses, Spark jobs, and Delta table sprawl.
+- **Enterprise architects** designing OneLake topology, security, and CI/CD.
+- **Analytics leads** who own a capacity and need CU burn to be predictable.
+
+## How the manual is organized
+
+<Cards>
+  <Card title="OneLake & Delta Lake" href="/docs/onelake" description="Delta optimization, V-Order, vacuum & retention, multi-cloud shortcuts." />
+  <Card title="Data Engineering" href="/docs/data-engineering" description="Production PySpark patterns, the Native Execution Engine, resource profiles, Runtime upgrades." />
+  <Card title="CI/CD & Git" href="/docs/cicd" description="Git integration, deployment pipelines, variable libraries, GitHub Actions for Fabric." />
+  <Card title="Governance & Security" href="/docs/governance" description="OneLake security, workspace identity, audit logging for compliance." />
+  <Card title="Tools & Calculators" href="/docs/tools" description="CU cost calculator, VS Code sync, capacity simulation." />
+  <Card title="Migration Playbooks" href="/docs/playbooks" description="Step-by-step conversions from SSIS, Snowflake, and Databricks." />
+</Cards>
+
+## Conventions used in this manual
+
+| Callout | Meaning |
+| --- | --- |
+| **CU impact** | How the pattern changes Capacity Unit consumption. |
+| **Runtime** | Minimum Fabric Runtime / Spark version required. |
+| **Reversible?** | Whether the change can be rolled back without a reload. |
+
+Every page states its CU impact up front. If a technique saves money, that is
+the headline — not a footnote.

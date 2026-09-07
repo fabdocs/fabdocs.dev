@@ -1,0 +1,111 @@
+---
+title: Production PySpark patterns
+description: Idempotent upserts, safe schema evolution, parameterized notebooks, and structured logging for Fabric.
+---
+
+## Parameterize the notebook
+
+Use a parameter cell (toggle **Toggle parameter cell** in the notebook) so
+pipelines can override values:
+
+```python
+# Parameters
+run_date = "2026-01-01"
+source_table = "bronze.orders"
+target_table = "silver.orders"
+full_reload = False
+```
+
+Never read `spark.conf` for business parameters and never hard-code a
+workspace-qualified path — it breaks the moment the notebook is deployed to
+another workspace. See [Variable libraries](/docs/cicd/variable-libraries).
+
+## Idempotent upsert
+
+```python
+from delta.tables import DeltaTable
+from pyspark.sql import functions as F
+
+incoming = (
+    spark.read.table(source_table)
+    .where(F.col("updated_at") >= run_date)
+    .withColumn("_ingested_at", F.current_timestamp())
+)
+
+if not spark.catalog.tableExists(target_table):
+    incoming.write.saveAsTable(target_table)
+else:
+    (
+        DeltaTable.forName(spark, target_table).alias("t")
+        .merge(incoming.alias("s"), "t.order_id = s.order_id")
+        .whenMatchedUpdateAll(condition="s.updated_at > t.updated_at")
+        .whenNotMatchedInsertAll()
+        .execute()
+    )
+```
+
+Re-running with the same `run_date` produces the same table. That is the whole
+point.
+
+## Safe schema evolution
+
+```python
+(incoming.write
+    .option("mergeSchema", "true")        # additive columns only
+    .mode("append")
+    .saveAsTable(target_table))
+```
+
+<Callout type="warn">
+`mergeSchema` adds new columns. It does **not** handle type changes or drops.
+For those, write a migration notebook that does an explicit
+`ALTER TABLE ... ALTER COLUMN` or a versioned rebuild, and gate it in CI.
+</Callout>
+
+For partition-scoped reloads, prefer `replaceWhere` over delete+append:
+
+```python
+(incoming.where(F.col("run_date") == run_date).write
+    .option("replaceWhere", f"run_date = '{run_date}'")
+    .mode("overwrite")
+    .saveAsTable(target_table))
+```
+
+## Structured logging
+
+Print JSON so the Monitoring hub and any log shipper can parse it:
+
+```python
+import json, time
+
+def log(event, **kw):
+    print(json.dumps({"ts": time.time(), "event": event, "notebook": "silver_orders", **kw}))
+
+log("start", run_date=run_date, full_reload=full_reload)
+rows = incoming.count()
+assert rows > 0, "no incoming rows — upstream is late"
+log("read", rows=rows)
+```
+
+## Boundary assertions
+
+```python
+expected_cols = {"order_id", "customer_id", "amount", "updated_at"}
+missing = expected_cols - set(incoming.columns)
+assert not missing, f"schema drift: missing {missing}"
+
+# after write
+written = spark.read.table(target_table).where(F.col("run_date") == run_date).count()
+log("write", rows=written)
+assert written >= rows * 0.99, "row loss during merge"
+```
+
+## Don't collect to the driver
+
+```python
+# Bad — pulls the whole column to the driver, OOMs on scale
+ids = [r.order_id for r in df.select("order_id").collect()]
+
+# Good — keep it distributed
+df.join(other_df, "order_id", "left_anti")
+```

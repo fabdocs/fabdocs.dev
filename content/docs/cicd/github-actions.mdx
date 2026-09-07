@@ -1,0 +1,137 @@
+---
+title: GitHub Actions for Fabric
+description: Validate on PR, deploy on merge. A service principal, fabric-cli, and two workflows.
+---
+
+## Prerequisites
+
+<Steps>
+
+<Step>
+
+### Create a service principal (SPN)
+
+Register an Entra app. Grant it the Fabric permissions your org allows for
+SPNs, and add it as a **workspace Admin** on dev/test/prod (or via a group).
+
+</Step>
+
+<Step>
+
+### Enable SPN access in the Fabric admin portal
+
+`Admin portal → Tenant settings → Service principals can use Fabric APIs` — scope
+to a security group containing your SPN.
+
+</Step>
+
+<Step>
+
+### Store secrets in GitHub
+
+`FABRIC_CLIENT_ID`, `FABRIC_CLIENT_SECRET`, `FABRIC_TENANT_ID`. Put deploy
+secrets in a protected **Environment** (`prod`) with required reviewers.
+
+</Step>
+
+</Steps>
+
+## PR validation workflow
+
+```yaml
+# .github/workflows/pr-validate.yml
+name: Validate Fabric items
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install fabric-cli
+        run: pip install ms-fabric-cli
+
+      - name: Login
+        env:
+          FABRIC_CLIENT_ID: ${{ secrets.FABRIC_CLIENT_ID }}
+          FABRIC_CLIENT_SECRET: ${{ secrets.FABRIC_CLIENT_SECRET }}
+          FABRIC_TENANT_ID: ${{ secrets.FABRIC_TENANT_ID }}
+        run: |
+          fab auth login -u "$FABRIC_CLIENT_ID" \
+            -p "$FABRIC_CLIENT_SECRET" --tenant "$FABRIC_TENANT_ID"
+
+      - name: Static checks
+        run: |
+          python -m json.tool < parameter.yml > /dev/null || (echo "bad parameter.yml" && exit 1)
+          # notebook lint, naming conventions, forbidden hard-coded workspace ids
+          ! grep -rEn "abfss://[^ ]*@onelake" workspaces/ || (echo "hard-coded OneLake path" && exit 1)
+```
+
+## Deploy workflow
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-test:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install ms-fabric-cli
+      - name: Login
+        env:
+          FABRIC_CLIENT_ID: ${{ secrets.FABRIC_CLIENT_ID }}
+          FABRIC_CLIENT_SECRET: ${{ secrets.FABRIC_CLIENT_SECRET }}
+          FABRIC_TENANT_ID: ${{ secrets.FABRIC_TENANT_ID }}
+        run: fab auth login -u "$FABRIC_CLIENT_ID" -p "$FABRIC_CLIENT_SECRET" --tenant "$FABRIC_TENANT_ID"
+      - name: Update dev workspace from Git
+        run: fab git update "Analytics - Dev" --remote-commit-hash "$GITHUB_SHA" --wait
+      - name: Deploy dev -> test
+        run: |
+          fab deploy-pipeline "Analytics Pipeline" --source Development --target Test --wait
+      - name: Smoke test
+        run: fab job run "Analytics - Test" --item "Smoke.Notebook" --wait
+
+  deploy-prod:
+    needs: deploy-test
+    runs-on: ubuntu-latest
+    environment: prod          # required reviewers gate this
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install ms-fabric-cli
+      - name: Login
+        env:
+          FABRIC_CLIENT_ID: ${{ secrets.FABRIC_CLIENT_ID }}
+          FABRIC_CLIENT_SECRET: ${{ secrets.FABRIC_CLIENT_SECRET }}
+          FABRIC_TENANT_ID: ${{ secrets.FABRIC_TENANT_ID }}
+        run: fab auth login -u "$FABRIC_CLIENT_ID" -p "$FABRIC_CLIENT_SECRET" --tenant "$FABRIC_TENANT_ID"
+      - name: Deploy test -> prod
+        run: fab deploy-pipeline "Analytics Pipeline" --source Test --target Production --wait
+```
+
+<Callout type="info">
+`ms-fabric-cli` command names evolve. Pin the version (`pip install
+ms-fabric-cli==<x.y.z>`) and check `fab --help` when upgrading.
+</Callout>
+
+## What CI cannot do yet
+
+- Some item types still lack full API deploy support — check the current matrix.
+- SPNs cannot perform every workspace operation a user can; test each command
+  with the SPN early, not on release day.

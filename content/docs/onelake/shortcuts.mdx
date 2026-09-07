@@ -1,0 +1,86 @@
+---
+title: Multi-cloud shortcuts
+description: S3, ADLS, GCS, and Dataverse shortcuts — caching behavior, egress cost, and consistency gotchas.
+---
+
+A **shortcut** is a pointer. It makes data that lives in another storage account
+or cloud appear as a folder or table inside a Fabric lakehouse, with no copy and
+no pipeline. Every Fabric engine can then read it as if it were local OneLake.
+
+## CU impact
+
+Shortcuts themselves cost nothing to create. Reads through a shortcut consume
+the same CUs as a native read *plus*:
+
+- **Cloud egress** billed by the source provider (AWS/GCP) on cache misses.
+- Slightly higher latency on the first read of each file before it is cached.
+
+## Caching
+
+Fabric caches shortcut data on read. Cache entries live up to **24 hours** and
+are evicted on an LRU basis per capacity.
+
+<Callout type="warn">
+The cache is **not** invalidated when the source file changes. If an S3 object
+is overwritten in place, Fabric may serve the stale cached copy for up to 24h.
+Design upstream jobs to write new files (immutable naming) rather than
+overwrite, or accept the staleness window.
+</Callout>
+
+## Source types and gotchas
+
+<Tabs items={["S3 / S3-compatible", "ADLS Gen2", "GCS", "Dataverse"]}>
+
+<Tab value="S3 / S3-compatible">
+
+- Auth via access key + secret, stored in a connection. Use a scoped IAM policy
+  (`s3:GetObject`, `s3:ListBucket` on one prefix).
+- `s3compat` endpoint type covers MinIO, Cloudflare R2, Wasabi — set the custom
+  endpoint URL and keep path-style addressing in mind.
+- Egress: every cache miss is a GET billed by AWS. Co-locate the Fabric capacity
+  region with the bucket region.
+
+</Tab>
+
+<Tab value="ADLS Gen2">
+
+- Auth via organizational account, service principal, or workspace identity
+  (preferred — see [Workspace identity](/docs/governance/workspace-identity)).
+- No egress charge when the account is in the same Azure region.
+- Hierarchical namespace must be enabled on the storage account.
+
+</Tab>
+
+<Tab value="GCS">
+
+- Uses the S3-compatible XML API with an HMAC key.
+- Endpoint: `storage.googleapis.com`.
+- Egress billed by Google on cache misses; interconnect discounts do not apply
+  to Fabric-originated reads.
+
+</Tab>
+
+<Tab value="Dataverse">
+
+- Direct link to Dataverse tables, no Synapse Link export needed.
+- Read-only. Schema changes in Dataverse appear automatically.
+- Good for joining CRM/ERP entities into a lakehouse without ETL.
+
+</Tab>
+
+</Tabs>
+
+## Delta tables through shortcuts
+
+If the source folder is a valid Delta table (`_delta_log` present), create the
+shortcut under `Tables/` and Fabric registers it in the SQL endpoint. Under
+`Files/` it stays raw. Shortcut Delta tables are **read-only** from Fabric —
+writes must go back through the owning engine.
+
+## When to copy instead
+
+- The source is in a different region and read-heavy — egress + latency beat the
+  storage cost of a mirrored copy.
+- You need V-Order or Fabric-side `OPTIMIZE` — you cannot rewrite files you do
+  not own.
+- Compliance requires the data to physically reside in your tenant.

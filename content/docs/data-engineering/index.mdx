@@ -1,0 +1,33 @@
+---
+title: Data Engineering
+description: Production PySpark on Fabric — patterns that survive Runtime upgrades and keep CU consumption predictable.
+icon: Boxes
+---
+
+Fabric notebooks are the workhorse of the platform. The gap between a notebook
+that "works in the demo" and one that runs unattended for a year is: idempotency,
+observability, resource sizing, and staying ahead of Runtime deprecations.
+
+## Pages
+
+<Cards>
+  <Card title="Production PySpark patterns" href="/docs/data-engineering/pyspark-patterns" description="Idempotent MERGE, schema evolution, parameterized notebooks, structured logging." />
+  <Card title="Native Execution Engine" href="/docs/data-engineering/native-execution-engine" description="When NEE accelerates a query, when it falls back to the JVM, and how to cut CU." />
+  <Card title="Resource profiles" href="/docs/data-engineering/resource-profiles" description="readHeavyForSpark, writeHeavy, and custom profiles for the workload shape." />
+  <Card title="Runtime upgrades" href="/docs/data-engineering/runtime-upgrades" description="Surviving Spark / Delta version bumps without a fire drill." />
+</Cards>
+
+## Principles
+
+<Callout type="info">
+**Every notebook is a function.** Inputs come from parameters, not hard-coded
+paths. Output is deterministic for the same inputs. Re-running it is always safe.
+</Callout>
+
+- **Idempotent by default** — use `MERGE` keyed on a business key, or
+  `replaceWhere` on a partition, never blind `append`.
+- **Fail loud, fail fast** — assert row counts and schema at the boundaries;
+  a job that writes zero rows silently is worse than one that errors.
+- **One notebook, one responsibility** — orchestrate with pipelines, not with
+  1000-line notebooks.
+- **Measure CU, not wall-clock** — a faster job on a bigger pool can cost more.

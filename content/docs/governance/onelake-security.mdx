@@ -1,0 +1,116 @@
+---
+title: OneLake security
+description: Define row-, column-, and table-level access once; every engine enforces it — Spark, SQL endpoint, and Direct Lake.
+---
+
+## Why it matters
+
+Historically, security in Fabric lived in the SQL endpoint (T-SQL RLS/OLS) and
+in Power BI models — Spark bypassed all of it. **OneLake security** (roles
+defined on the lakehouse) is enforced at the data layer, so a notebook reading
+`spark.read.table(...)` sees the same filtered result a Power BI user does.
+
+## Concepts
+
+| Term | Meaning |
+| --- | --- |
+| **Role** | A named grant: a set of members + the tables/rows/columns they can read |
+| **Table-level security (TLS)** | Role can/can't see a table at all |
+| **Column-level security (CLS)** | Role sees the table but specific columns are blocked |
+| **Row-level security (RLS)** | Role sees only rows matching a filter predicate |
+
+## Defining a role
+
+In the lakehouse **Manage OneLake security** UI, or via API:
+
+```text
+Role: analyst_emea
+  Members: group "FIN-Analysts-EMEA"
+  Tables:
+    sales.orders        -> allowed, RLS: region = 'EMEA'
+    sales.orders        -> CLS: deny [customer_tax_id]
+    hr.compensation      -> not listed => denied
+```
+
+## Enforcement across engines
+
+<Tabs items={["Spark", "SQL endpoint", "Direct Lake"]}>
+
+<Tab value="Spark">
+
+```python
+# Runs as the calling user's identity; RLS/CLS applied transparently
+df = spark.read.table("sales.orders")
+# df already filtered to region = 'EMEA', customer_tax_id column absent
+```
+
+Requires a Runtime that supports OneLake security enforcement — verify on your
+Environment.
+
+</Tab>
+
+<Tab value="SQL endpoint">
+
+Reads through the SQL analytics endpoint honor the same roles. You can still add
+T-SQL RLS/OLS on top; the effective permission is the **intersection**.
+
+</Tab>
+
+<Tab value="Direct Lake">
+
+Semantic models in Direct Lake mode honor OneLake security when the model uses
+**single sign-on** to OneLake rather than a fixed identity. If the model is set
+to a fixed identity, that identity's role membership applies to everyone — avoid
+for regulated data.
+
+</Tab>
+
+</Tabs>
+
+## Rollout pattern
+
+<Steps>
+
+<Step>
+
+### Inventory sensitive tables and columns
+
+Tag them in a data catalog / spreadsheet: table, sensitivity, the filter column
+for RLS, the columns needing CLS.
+
+</Step>
+
+<Step>
+
+### Model roles on groups, never individuals
+
+`analyst_emea`, `analyst_amer`, `pii_cleared`. Membership is an Entra group
+managed by IAM, not a Fabric click-op.
+
+</Step>
+
+<Step>
+
+### Test with a real member account
+
+Sign in as a test user in each group. Verify Spark, SQL, and a Direct Lake
+report all return the filtered set.
+
+</Step>
+
+<Step>
+
+### Default deny
+
+Any table not listed in a role is invisible to that role. Confirm the "no role"
+experience returns nothing, not everything.
+
+</Step>
+
+</Steps>
+
+<Callout type="warn">
+Workspace **Admin** and **Member** roles can bypass OneLake security by design
+(they manage the data). Keep those roles tiny and audited — see
+[Audit logs](/docs/governance/audit-logs).
+</Callout>

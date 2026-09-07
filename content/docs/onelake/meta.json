@@ -1,0 +1,13 @@
+{
+  "title": "OneLake & Delta Lake",
+  "description": "Storage architecture, Delta tuning, and shortcuts.",
+  "icon": "Database",
+  "root": true,
+  "pages": [
+    "index",
+    "delta-optimization",
+    "v-order",
+    "vacuum-and-retention",
+    "shortcuts"
+  ]
+}

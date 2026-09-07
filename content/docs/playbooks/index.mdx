@@ -1,0 +1,63 @@
+---
+title: Migration Playbooks
+description: Opinionated, step-by-step conversions from Databricks, Snowflake, and SSIS into Microsoft Fabric.
+icon: Map
+---
+
+Each playbook follows the same arc: **inventory → map → move a slice → validate
+→ cut over → decommission**. They assume you have read
+[OneLake & Delta Lake](/docs/onelake) and [CI/CD & Git](/docs/cicd).
+
+<Cards>
+  <Card title="From Databricks" href="/docs/playbooks/from-databricks" description="Notebooks, jobs, Unity Catalog, and DLT into Fabric lakehouses + pipelines." />
+  <Card title="From Snowflake" href="/docs/playbooks/from-snowflake" description="Warehouses, roles, tasks, and SnowSQL into Fabric Warehouse + OneLake." />
+  <Card title="From SSIS" href="/docs/playbooks/from-ssis" description="Control flow, data flow, and SSISDB into Fabric Data Pipelines + Dataflows." />
+</Cards>
+
+## Universal pre-work
+
+<Steps>
+
+<Step>
+
+### Stand up the landing zone
+
+A Fabric capacity, a dev workspace [connected to Git](/docs/cicd/git-integration),
+one lakehouse, one warehouse. Nothing production yet.
+
+</Step>
+
+<Step>
+
+### Inventory the source
+
+Enumerate every job, table, and dependency. Tag each: **keep / retire /
+rebuild**. Roughly a third of most estates is dead code — do not migrate it.
+
+</Step>
+
+<Step>
+
+### Pick a thin vertical slice
+
+One source table → one transform → one consumable output. End to end. This
+proves the pattern and your CI before you scale out.
+
+</Step>
+
+<Step>
+
+### Define "validated"
+
+Row counts match, a set of aggregate checksums match, and a business user signs
+off on one report. Write these down before you start moving data.
+
+</Step>
+
+</Steps>
+
+<Callout type="info">
+Run old and new in parallel for at least one full business cycle. The migration
+is not done when the new pipeline runs — it is done when you have *deleted* the
+old one.
+</Callout>

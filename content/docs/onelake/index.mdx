@@ -1,0 +1,38 @@
+---
+title: OneLake & Delta Lake
+description: The one copy of data for the whole tenant — and how to keep its Delta tables fast and cheap.
+icon: Database
+---
+
+OneLake is a single, tenant-wide data lake built on ADLS Gen2. Every workspace
+gets a folder, every lakehouse and warehouse writes **Delta-Parquet** into it,
+and every engine (Spark, SQL, Power BI Direct Lake, KQL) reads the same files.
+
+That is the promise. The cost is that badly maintained Delta tables degrade
+*every* engine at once. This section is about keeping them healthy.
+
+## Pages
+
+<Cards>
+  <Card title="Delta table optimization" href="/docs/onelake/delta-optimization" description="OPTIMIZE, bin-compaction, target file size, and when to partition vs. Z-order." />
+  <Card title="V-Order tuning" href="/docs/onelake/v-order" description="What V-Order costs on write, what it saves on read, and when to turn it off." />
+  <Card title="VACUUM & retention" href="/docs/onelake/vacuum-and-retention" description="Reclaiming storage safely without breaking time travel or Direct Lake." />
+  <Card title="Multi-cloud shortcuts" href="/docs/onelake/shortcuts" description="S3, ADLS, and GCS shortcuts — caching, cost, and consistency gotchas." />
+</Cards>
+
+## Mental model
+
+```text
+OneLake (tenant)
+└── Workspace
+    └── Lakehouse
+        ├── Tables/           managed Delta tables (SQL endpoint + Direct Lake)
+        │   └── my_table/
+        │       ├── _delta_log/       JSON + checkpoint commits
+        │       └── part-*.parquet    data files (+ deletion vectors)
+        └── Files/            unmanaged — raw/landing zone
+```
+
+The `_delta_log` is the source of truth. File listing performance, checkpoint
+frequency, and the number of small Parquet files under each table are the three
+levers that decide how fast a cold query starts.

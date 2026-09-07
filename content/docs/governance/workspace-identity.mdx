@@ -1,0 +1,93 @@
+---
+title: Workspace identity
+description: A managed Entra identity per workspace — trusted access to firewalled storage with no secrets to rotate.
+---
+
+## What it is
+
+A **workspace identity** is a service principal automatically created and managed
+by Fabric, tied to one workspace. Fabric items in that workspace can authenticate
+*as the workspace* to Azure resources — no client secret, no certificate, no
+rotation.
+
+## What it unlocks
+
+- **Trusted workspace access** to ADLS Gen2 accounts protected by a firewall /
+  `Selected networks`. The storage account trusts the workspace identity via a
+  resource instance rule, so Fabric traffic is allowed without opening the
+  firewall to the internet.
+- **Secret-free connections** for shortcuts, pipelines, and notebooks reading
+  Azure storage, Key Vault, Event Hubs, etc.
+
+## Setup
+
+<Steps>
+
+<Step>
+
+### Create the identity
+
+`Workspace settings → Workspace identity → + Workspace identity`. Requires the
+workspace to be on a Fabric capacity (F SKU) and you to be an Admin.
+
+</Step>
+
+<Step>
+
+### Grant it on the storage account
+
+Assign `Storage Blob Data Reader` (or Contributor for write) to the workspace
+identity on the target ADLS Gen2 account or container.
+
+</Step>
+
+<Step>
+
+### Enable trusted access on the storage account
+
+```bash
+az storage account update -n <acct> -g <rg> \
+  --public-network-access Enabled \
+  --default-action Deny
+
+az storage account network-rule add -g <rg> --account-name <acct> \
+  --resource-id "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Fabric/..." \
+  --tenant-id <tenant>
+```
+
+Then in the shortcut/connection dialog, choose **Workspace identity** as the
+auth method and check "trusted service exception".
+
+</Step>
+
+<Step>
+
+### Use it
+
+Shortcuts, `spark.read` on `abfss://`, and pipeline copy activities now
+authenticate as the workspace. Nothing to store in a variable library.
+
+</Step>
+
+</Steps>
+
+## Precedence
+
+If a connection specifies an explicit credential (account key, SPN), that wins.
+Workspace identity is used when the connection's auth method is set to it. Prefer
+it everywhere you can; fall back to an SPN only for cross-tenant scenarios where
+the workspace identity is not trusted.
+
+<Callout type="warn">
+Deleting and recreating a workspace identity generates a **new** principal —
+every downstream role assignment and network rule must be redone. Treat creation
+as one-way; document its object id.
+</Callout>
+
+## CI/CD note
+
+Workspace identity is per workspace, so dev/test/prod each have their own. Grant
+all three on the corresponding storage accounts up front, or your first prod
+deploy fails on auth. This is a good fit for
+[variable libraries](/docs/cicd/variable-libraries) holding the per-stage
+storage account names.

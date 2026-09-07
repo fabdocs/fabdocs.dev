@@ -1,0 +1,80 @@
+---
+title: Resource profiles
+description: Spark resource profiles change dozens of configs at once to match the workload shape. Pick the right one instead of hand-tuning.
+---
+
+## What a resource profile is
+
+A **resource profile** is a named bundle of Spark configuration tuned for a
+workload shape (read-heavy, write-heavy, balanced). Fabric ships defaults and
+lets you define your own on an Environment. Setting one profile flips ~20
+settings — shuffle partitions, AQE thresholds, file-size targets, broadcast
+limits — that you would otherwise tune individually and get wrong.
+
+## Built-in profiles
+
+| Profile | Optimizes for | Typical use |
+| --- | --- | --- |
+| `readHeavyForSpark` | Large scans feeding Spark transforms | Silver/gold builds, big joins |
+| `readHeavyForPBI` | Files shaped for Direct Lake / VertiPaq | Tables behind semantic models |
+| `writeHeavy` | Many concurrent writes, frequent commits | Streaming sinks, high-frequency MERGE |
+| *(default / balanced)* | Mixed | Ad-hoc notebooks, exploration |
+
+## Setting a profile
+
+```python
+%%configure
+{
+  "conf": {
+    "spark.fabric.resourceProfile": "readHeavyForSpark"
+  }
+}
+```
+
+Or on the Environment: `Spark compute → Resource profile`. Environment-level is
+preferred so scheduled runs are reproducible.
+
+## What each profile actually changes
+
+<Accordions>
+
+<Accordion title="readHeavyForSpark">
+
+- Larger `spark.sql.files.maxPartitionBytes` — fewer, bigger scan tasks.
+- Higher AQE coalesce target — avoids tiny post-shuffle partitions.
+- Broadcast join threshold raised — more dimension tables broadcast.
+- Delta target file size ~256 MB.
+
+</Accordion>
+
+<Accordion title="writeHeavy">
+
+- Smaller target file size — commits land faster, less write amplification.
+- More aggressive `spark.sql.shuffle.partitions` for parallel write tasks.
+- Optimized write / auto-compact tuned down so per-batch latency stays low.
+- Lower broadcast threshold — protects executors carrying write buffers.
+
+</Accordion>
+
+<Accordion title="readHeavyForPBI">
+
+- File and row-group sizes aligned to VertiPaq transcoding.
+- V-Order defaults on.
+- Coalesce targets chosen so Direct Lake reframes touch fewer files.
+
+</Accordion>
+
+</Accordions>
+
+## Choosing
+
+1. Is the notebook's dominant cost a **scan/join**? → `readHeavyForSpark`.
+2. Does it feed a **Direct Lake** model? → `readHeavyForPBI`.
+3. Is it a **streaming sink** or high-frequency `MERGE`? → `writeHeavy`.
+4. Genuinely mixed or unsure? → leave the default and measure before tuning.
+
+<Callout type="warn">
+Do not stack a resource profile with a pile of manual `spark.conf.set` overrides
+— you lose the benefit of a tested bundle and reintroduce the drift the profile
+exists to prevent. Override at most one or two settings, and comment why.
+</Callout>

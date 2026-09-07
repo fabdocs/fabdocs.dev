@@ -1,0 +1,66 @@
+---
+title: CU cost & capacity calculator
+description: Estimate and compare Capacity Unit burn for Spark jobs versus SQL warehouse workloads by compute size and concurrency.
+---
+
+Capacity Units (CU) are Fabric's single currency. Every engine — Spark, SQL,
+pipelines, Direct Lake — draws from the same capacity. The hard part of planning
+is that the *same logical workload* costs differently depending on which engine
+runs it and how you size the compute.
+
+Use the calculator to get a first-order comparison, then validate against the
+**Capacity Metrics app** for your tenant.
+
+<CuCalculator />
+
+## The model
+
+```text
+CU-seconds/day = effectiveVCores × activeSecondsPerDay × cuPerVCore × concurrency
+avgCUs         = CU-seconds/day ÷ 86,400
+peakCUs        = effectiveVCores × cuPerVCore × concurrency
+min F SKU      = smallest F capacity with CU count ≥ peakCUs
+$/month (PAYG) = skuCUs × ratePerCUHour × 730
+```
+
+### Default assumptions
+
+| Input | Default | Basis |
+| --- | --- | --- |
+| CU per Spark vCore | 0.5 | Published Fabric Spark metering |
+| Rate per CU-hour | $0.18 | F64 pay-as-you-go ≈ $11.52/hr ÷ 64 |
+| Reserved discount | 41% | Typical 1-year reservation saving |
+| Hours per month | 730 | 365 ÷ 12 × 24 |
+
+<Callout type="warn">
+This is a **planning estimate**, not a billing calculation. It ignores
+autoscale billing for Spark, background-vs-interactive smoothing windows,
+bursting/throttling, storage, OneLake transactions, and per-operation overhead.
+Directional comparison only.
+</Callout>
+
+## How to read the result
+
+- **Average CUs** tells you how loaded a capacity *feels* over 24h — useful for
+  "will this fit alongside my other workloads".
+- **Peak CUs** drives the minimum SKU. Fabric smooths background jobs over 24h
+  but interactive spikes over ~5 minutes; a high peak with low average still
+  needs the bigger SKU unless the work is purely background.
+- **Concurrency** multiplies peak. Ten parallel Spark jobs on a 32-vCore pool
+  do not fit on an F16.
+
+## Worked example: nightly batch vs. warehouse ELT
+
+You have 500 GB/day of transforms. Option A: a Spark notebook on 4× medium
+(32 vCores) running 90 min. Option B: T-SQL `INSERT…SELECT` in a warehouse
+bursting to ~16 vCores for 90 min.
+
+1. Set **Active compute / day** to `90`, **Concurrency** to `1`.
+2. Spark: **Total vCores** `32`. SQL warehouse: **Effective vCores** `16`.
+3. Compare the monthly figures. Spark's larger pool costs more per second but
+   may finish faster in practice — shorten its active minutes and re-check.
+
+The lesson the calculator makes concrete: **right-size the pool and cut active
+time** (fewer, bigger files; the [Native Execution
+Engine](/docs/data-engineering/native-execution-engine)) before you go shopping
+for a bigger capacity.

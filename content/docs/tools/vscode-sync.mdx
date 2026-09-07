@@ -1,0 +1,122 @@
+---
+title: VS Code sync & extension guide
+description: Edit Fabric notebooks, environments, and pipelines from VS Code — with Git, real linting, and no browser tab.
+---
+
+## Why leave the web UI
+
+- Real editor: multi-cursor, extensions, `ruff`/`black`, GitHub Copilot.
+- Local Git: branch, diff, rebase without the workspace source-control panel.
+- Run and debug notebooks against a **remote Fabric Spark** session or locally.
+
+## Options
+
+<Tabs items={["Fabric Data Engineering extension", "fabric-cli", "Synapse VS Code (legacy)"]}>
+
+<Tab value="Fabric Data Engineering extension">
+
+The **Fabric Data Engineering** VS Code extension (Microsoft, from the
+Marketplace) is the primary path.
+
+1. Install the extension + the **Jupyter** and **Python** extensions.
+2. `Ctrl/Cmd-Shift-P → Fabric: Sign In`.
+3. `Fabric: Set Workspace` → pick your dev workspace.
+4. Notebooks appear under the Fabric explorer. Open one — it edits the `.py`
+   representation locally.
+5. Pick a kernel: **Fabric Runtime (remote Spark)** for real capacity, or a
+   local Python env for pure-Python cells.
+
+</Tab>
+
+<Tab value="fabric-cli">
+
+`ms-fabric-cli` (`fab`) is scriptable and CI-friendly — the same tool the
+[GitHub Actions](/docs/cicd/github-actions) workflows use.
+
+```bash
+pip install ms-fabric-cli
+fab auth login          # device code, or -u/-p for an SPN
+fab ls "My Workspace"
+fab get "My Workspace/Ingest.Notebook" --output ./local/Ingest.Notebook
+# edit locally, then:
+fab set "My Workspace/Ingest.Notebook" --input ./local/Ingest.Notebook
+```
+
+Good for bulk export/import and for items the extension doesn't surface.
+
+</Tab>
+
+<Tab value="Synapse VS Code (legacy)">
+
+The older **Synapse** extension can open Fabric notebooks in some configurations
+but is not the supported path. Use it only if you have an existing Synapse
+workflow you're migrating.
+
+</Tab>
+
+</Tabs>
+
+## Recommended local layout
+
+<Files>
+  <Folder name="fabric-analytics" defaultOpen>
+    <Folder name=".vscode">
+      <File name="settings.json" />
+      <File name="extensions.json" />
+    </Folder>
+    <Folder name="notebooks" defaultOpen>
+      <File name="Ingest.Notebook.py" />
+      <File name="Transform.Notebook.py" />
+    </Folder>
+    <Folder name="environments">
+      <File name="prod.Environment" />
+    </Folder>
+    <File name="pyproject.toml" />
+    <File name="README.md" />
+  </Folder>
+</Files>
+
+```jsonc
+// .vscode/settings.json
+{
+  "notebook.formatOnSave.enabled": true,
+  "[python]": { "editor.defaultFormatter": "charliermarsh.ruff" },
+  "python.testing.pytestEnabled": true
+}
+```
+
+## Local unit tests for notebook logic
+
+Extract pure functions out of notebooks into a `src/` package and test them with
+plain `pytest` + a local `pyspark`:
+
+```python
+# src/transforms.py
+from pyspark.sql import DataFrame, functions as F
+
+def add_audit_cols(df: DataFrame, run_date: str) -> DataFrame:
+    return df.withColumn("run_date", F.lit(run_date)) \
+             .withColumn("_ingested_at", F.current_timestamp())
+```
+
+```python
+# tests/test_transforms.py
+def test_add_audit_cols(spark):
+    out = add_audit_cols(spark.createDataFrame([(1,)], ["id"]), "2026-01-01")
+    assert "run_date" in out.columns
+    assert out.first()["run_date"] == "2026-01-01"
+```
+
+The notebook then just imports and calls — thin glue, thick tested library.
+
+<Callout type="info">
+Keep the notebook's parameter cell as the only stage-specific surface. Everything
+below it should be importable, testable Python.
+</Callout>
+
+## Gotchas
+
+- **`mssparkutils` / `notebookutils`** only exist in a Fabric session. Guard
+  imports so local test collection doesn't blow up.
+- Remote kernel start is slow (pool spin-up). Keep a session warm while iterating.
+- The extension writes the `.platform` metadata file — commit it; don't edit it.

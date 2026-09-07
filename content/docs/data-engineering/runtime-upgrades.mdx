@@ -1,0 +1,105 @@
+---
+title: Runtime upgrades
+description: Fabric Runtime bumps Spark, Delta, Python, and Java together. Treat it like a dependency upgrade, not a surprise.
+---
+
+## What a Runtime is
+
+A Fabric **Runtime** is a pinned set of Spark, Delta Lake, Java, Scala, Python,
+and pre-installed library versions. Microsoft releases a new one roughly yearly
+and supports the previous one for a deprecation window.
+
+| Runtime | Spark | Delta | Python | Status (as of 2026) |
+| --- | --- | --- | --- | --- |
+| 1.1 | 3.3 | 2.2 | 3.10 | Retired |
+| 1.2 | 3.4 | 2.4 | 3.10 | Deprecated |
+| 1.3 | 3.5 | 3.x | 3.11 | GA / default |
+
+*Always confirm current versions in the Fabric docs — this table drifts.*
+
+## Why it bites
+
+- **Behavior changes** in Spark minor versions: ANSI SQL defaults, timestamp
+  parsing, `INT96` handling, implicit cast rules.
+- **Delta protocol upgrades**: new writer features (deletion vectors, liquid
+  clustering) can raise the table's `minWriterVersion` so older Runtimes can no
+  longer write it.
+- **Library versions**: pandas 1.x → 2.x, numpy 1.x → 2.x break silently.
+
+## Upgrade procedure
+
+<Steps>
+
+<Step>
+
+### Pin, don't float
+
+Set the Runtime explicitly on every Environment. Never rely on "default" — the
+default changes under you.
+
+</Step>
+
+<Step>
+
+### Clone the Environment
+
+Create `prod-runtime-1.3` alongside `prod-runtime-1.2`. Environments are
+CI/CD items — do this in a feature branch.
+
+</Step>
+
+<Step>
+
+### Run the regression set
+
+Point your integration notebooks and pipeline test runs at the new Environment.
+Assert row counts, schema hashes, and CU per run against recorded baselines.
+
+</Step>
+
+<Step>
+
+### Check Delta protocol
+
+```python
+spark.sql("DESCRIBE DETAIL my_table").select("minReaderVersion", "minWriterVersion").show()
+```
+
+If a new writer feature bumped the version, confirm every engine that writes the
+table is on a compatible Runtime before promoting.
+
+</Step>
+
+<Step>
+
+### Flip Environments via deployment pipeline
+
+Change the Environment binding as a normal deployment, not a manual edit in
+prod. See [Deployment pipelines](/docs/cicd/deployment-pipelines).
+
+</Step>
+
+<Step>
+
+### Keep the old Environment for one cycle
+
+Roll back = re-point the binding. Delete the old Environment only after a full
+business cycle (usually a month-end close) has run clean.
+
+</Step>
+
+</Steps>
+
+## Common breakages and fixes
+
+<Callout type="warn">
+**ANSI mode.** Newer Spark defaults `spark.sql.ansi.enabled` toward `true`.
+Overflow and invalid casts that used to return `NULL` now raise. Either fix the
+data/queries (preferred) or explicitly set it `false` on the Environment while
+you migrate.
+</Callout>
+
+- **Timestamp parsing** — set `spark.sql.legacy.timeParserPolicy` to `CORRECTED`
+  and fix format strings rather than reverting to `LEGACY`.
+- **pandas 2.x** — `df.append` removed (use `pd.concat`), `iteritems` removed.
+- **`spark.read.csv` schema inference** — stricter; provide explicit schemas.

@@ -1,0 +1,72 @@
+---
+title: Variable libraries
+description: One item, per-stage value sets. Notebooks and pipelines read a variable; the active value set switches on deployment.
+---
+
+## What they solve
+
+Before variable libraries, every stage-specific value (a connection string, a
+capacity id, a container path) needed a deployment rule per consuming item.
+A **variable library** is a single workspace item holding named variables, each
+with a value per **value set** (typically one per stage). Consumers reference
+the variable by name; the active value set determines what they get.
+
+## Shape
+
+```text
+VariableLibrary: "core"
+├── variables
+│   ├── lakehouse_id
+│   ├── adls_landing_path
+│   ├── notification_email
+│   └── capacity_region
+└── value sets
+    ├── Default   (dev values)
+    ├── Test
+    └── Prod
+```
+
+## Consuming from a data pipeline
+
+Pipeline expressions can reference a library variable directly:
+
+```text
+@pipeline().libraryVariables.core.adls_landing_path
+```
+
+## Consuming from a notebook
+
+Pass the variable in as a pipeline parameter (the pipeline resolves it), or read
+it via the library's binding in the notebook's resource list. Keep notebooks
+parameter-driven — see [PySpark patterns](/docs/data-engineering/pyspark-patterns):
+
+```python
+# Parameters (populated by the pipeline from libraryVariables)
+adls_landing_path = ""
+lakehouse_id = ""
+```
+
+## Switching value sets on deploy
+
+The active value set is part of workspace state and is set per stage. In CI:
+
+```bash
+fab set-variable-library-value-set \
+  --workspace "Analytics - Prod" \
+  --library "core" \
+  --value-set "Prod"
+```
+
+<Callout type="warn">
+A variable that exists in `Default` but is missing from `Prod` falls back to the
+`Default` value silently. Add a CI check that every variable is defined in every
+value set before allowing a prod deploy.
+</Callout>
+
+## Variable libraries vs. deployment rules
+
+| Use a variable library for | Use a deployment rule for |
+| --- | --- |
+| Values read by notebooks & data pipelines | Semantic model connection / parameter bindings |
+| Paths, ids, emails, region names | Report data source rebind |
+| Anything you want visible and diffable in Git | One-off item bindings not covered above |

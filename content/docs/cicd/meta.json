@@ -1,0 +1,13 @@
+{
+  "title": "CI/CD & Git",
+  "description": "Git integration, pipelines, and infrastructure as code.",
+  "icon": "GitBranch",
+  "root": true,
+  "pages": [
+    "index",
+    "git-integration",
+    "deployment-pipelines",
+    "variable-libraries",
+    "github-actions"
+  ]
+}

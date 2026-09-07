@@ -1,0 +1,86 @@
+---
+title: Git integration
+description: How workspace items serialize to a repo, what round-trips cleanly, and the branching model that avoids merge pain.
+---
+
+## How it works
+
+A workspace binds to a branch of an Azure DevOps or GitHub repo. Each supported
+item serializes to a folder (`<Name>.<Type>/`) containing a
+`.platform` file plus item-specific definition files. **Commit** pushes
+workspace state to the branch; **Update** pulls the branch into the workspace.
+
+## What serializes cleanly
+
+| Item | Git support | Notes |
+| --- | --- | --- |
+| Notebook | Full | `.py`/`.ipynb` source + metadata |
+| Data pipeline | Full | JSON definition |
+| Semantic model | Full | TMDL |
+| Report | Full | PBIR |
+| Lakehouse | Metadata only | Table **data** is not in Git — schema/shortcuts are |
+| Environment | Full | Runtime, libraries, Spark settings |
+| Warehouse | Partial | Object definitions; check current support matrix |
+| Dataflow Gen2 | Full (CI/CD variant) | |
+
+<Callout type="warn">
+Lakehouse **data** never goes in Git. Only definitions do. Seed data for a fresh
+environment comes from a setup notebook run post-deploy, not from the repo.
+</Callout>
+
+## Branching model
+
+<Steps>
+
+<Step>
+
+### One long-lived branch per permanent workspace
+
+`main` ↔ **dev** workspace. That is the only workspace that writes to `main`.
+
+</Step>
+
+<Step>
+
+### Feature work in short-lived branches + isolated workspaces
+
+Engineer creates `feature/x`, then a **new workspace** connected to that branch
+(or uses a private workspace). They never develop directly against the dev
+workspace on `main`.
+
+</Step>
+
+<Step>
+
+### PR back to main
+
+CI runs [validation](/docs/cicd/github-actions). On merge, the dev workspace
+does an **Update** to sync `main`.
+
+</Step>
+
+<Step>
+
+### test / prod are never Git-connected
+
+They receive changes only through the [deployment
+pipeline](/docs/cicd/deployment-pipelines). Git is the source of truth for dev;
+the pipeline is the promotion mechanism upward.
+
+</Step>
+
+</Steps>
+
+## Things that cause dirty diffs
+
+- **Auto-generated IDs / lastModified timestamps** — mostly handled now, but
+  review diffs before committing; don't blind-commit "everything changed".
+- **Editing the same notebook in the workspace and the repo** — pick one side
+  per change. Conflicts here are painful because the JSON is machine-formatted.
+- **Reordering pipeline activities** produces large diffs — expected.
+
+## Recovering from a bad state
+
+If a workspace and branch diverge badly, **Undo** in the source control panel
+discards workspace changes back to the last synced commit. To go the other way,
+revert the commit in Git and **Update** the workspace.

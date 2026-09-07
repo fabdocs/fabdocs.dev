@@ -1,0 +1,109 @@
+---
+title: Audit logs
+description: Where Fabric activity is recorded, how long it lives, and how to get it into a SIEM for compliance.
+---
+
+## Sources
+
+| Source | Contents | Retention |
+| --- | --- | --- |
+| **Microsoft Purview / M365 unified audit log** | User & admin activity across all of Fabric (view report, run notebook, change permission, create item) | 180 days (longer with add-on / E5) |
+| **Fabric Monitoring hub** | Recent job runs, refreshes, pipeline executions | Rolling, short (days) |
+| **Capacity Metrics app** | CU consumption by item and operation | ~14–28 days of detail |
+| **Workspace monitoring (Eventhouse)** | Diagnostic logs (Spark, semantic model, eventhouse) into a KQL DB you own | You control it |
+
+## Pulling the unified audit log
+
+<Tabs items={["PowerShell", "Office 365 Management API", "Purview portal"]}>
+
+<Tab value="PowerShell">
+
+```powershell
+Connect-ExchangeOnline
+Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-7) -EndDate (Get-Date) `
+  -RecordType "PowerBIAudit" -ResultSize 5000 |
+  Export-Csv fabric-audit.csv -NoTypeInformation
+```
+
+`RecordType` values include `PowerBIAudit` (covers Fabric) and specific ones
+like `FabricLakehouse`, depending on tenant.
+
+</Tab>
+
+<Tab value="Office 365 Management API">
+
+Subscribe the `Audit.General` content type and poll the blob feed. This is the
+supported path for continuous SIEM ingestion (Sentinel, Splunk).
+
+</Tab>
+
+<Tab value="Purview portal">
+
+`Purview → Audit → Search`. Filter by workload = Fabric/Power BI. Good for
+one-off investigations, not for automation.
+
+</Tab>
+
+</Tabs>
+
+## Workspace monitoring for engine-level detail
+
+Enable `Workspace settings → Monitoring`. Fabric provisions an Eventhouse (KQL
+DB) and streams diagnostic logs into it. Query with KQL:
+
+```kusto
+SparkListenerApplicationEnd
+| where Timestamp > ago(1d)
+| summarize runs=count(), avg_duration=avg(DurationMs) by ItemName
+| order by runs desc
+```
+
+Retain as long as you keep the Eventhouse — set a retention policy on the KQL
+database to match your compliance requirement.
+
+## A compliance-ready setup
+
+<Steps>
+
+<Step>
+
+### Continuous export
+
+Office 365 Management API → SIEM for the unified audit log. Do not rely on
+180-day portal retention.
+
+</Step>
+
+<Step>
+
+### Workspace monitoring on regulated workspaces
+
+Engine logs into an Eventhouse with an explicit retention policy (e.g. 400 days).
+
+</Step>
+
+<Step>
+
+### Alerting
+
+In the SIEM: alert on permission changes to regulated workspaces, workspace
+identity changes, and OneLake security role edits.
+
+</Step>
+
+<Step>
+
+### Quarterly access review
+
+Join audit "who read what" against role membership; recertify. Export the
+evidence.
+
+</Step>
+
+</Steps>
+
+<Callout type="info">
+The Capacity Metrics app is for cost/performance, not security — its retention is
+too short and its grain too coarse to be your audit trail. Use it alongside, not
+instead of, the unified audit log.
+</Callout>

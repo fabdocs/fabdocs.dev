@@ -1,0 +1,117 @@
+---
+title: From Databricks
+description: Move notebooks, jobs, Unity Catalog tables, and DLT pipelines to Fabric with the fewest rewrites.
+---
+
+## What maps to what
+
+| Databricks | Fabric | Notes |
+| --- | --- | --- |
+| Workspace notebook | Fabric notebook | `%run` → `%run` works; `dbutils` → `notebookutils`/`mssparkutils` |
+| Job / Workflow | Data pipeline (with Notebook activities) | Or a scheduled notebook for simple cases |
+| Delta Live Tables | Pipeline + notebooks, or Dataflow Gen2 | No direct DLT equivalent — rebuild the DAG explicitly |
+| Unity Catalog table | Lakehouse table in OneLake | Data is already Delta — often a shortcut, not a copy |
+| Cluster / pool | Fabric Environment + Spark pool | Size by vCores; see [Resource profiles](/docs/data-engineering/resource-profiles) |
+| Cluster-scoped libs | Environment libraries (`.whl`, PyPI, conda) | |
+| `spark.conf` in cluster config | Environment Spark settings | |
+| Secrets scope | Azure Key Vault via connection / workspace identity | |
+| SQL Warehouse | Fabric Warehouse or SQL analytics endpoint | |
+
+## Procedure
+
+<Steps>
+
+<Step>
+
+### Shortcut the data first, copy later
+
+If the Databricks tables live in ADLS you control, create OneLake **shortcuts**
+to the Delta folders. Instant read access, zero copy, and you can validate
+transforms against real data on day one. See
+[Shortcuts](/docs/onelake/shortcuts).
+
+</Step>
+
+<Step>
+
+### Port a notebook
+
+Replace `dbutils.*`:
+
+```python
+# Databricks
+dbutils.fs.ls("/mnt/raw")
+dbutils.widgets.get("run_date")
+dbutils.notebook.run("child", 600, {"k": "v"})
+dbutils.secrets.get("scope", "key")
+
+# Fabric
+notebookutils.fs.ls("Files/raw")
+run_date  # parameter cell
+notebookutils.notebook.run("child", 600, {"k": "v"})
+notebookutils.credentials.getSecret("https://<vault>.vault.azure.net/", "key")
+```
+
+Mount points (`/mnt/...`) become lakehouse-relative paths (`Files/...`,
+`Tables/...`) or `abfss://` URLs with [workspace
+identity](/docs/governance/workspace-identity).
+
+</Step>
+
+<Step>
+
+### Rebuild jobs as pipelines
+
+Each Databricks task becomes a Notebook activity. Task dependencies become
+pipeline edges. Job parameters become pipeline parameters, sourced from a
+[variable library](/docs/cicd/variable-libraries).
+
+</Step>
+
+<Step>
+
+### Replace DLT
+
+There is no declarative pipeline engine. For each DLT table, write an idempotent
+notebook ([PySpark patterns](/docs/data-engineering/pyspark-patterns)) and wire
+the dependency order in a pipeline. Expectations (`@dlt.expect`) become boundary
+assertions in the notebook.
+
+</Step>
+
+<Step>
+
+### Move governance
+
+Unity Catalog grants → [OneLake security](/docs/governance/onelake-security)
+roles (RLS/CLS/TLS). Map UC groups to the same Entra groups.
+
+</Step>
+
+<Step>
+
+### Validate the slice, then fan out
+
+Counts + checksums vs. the Databricks output for one vertical. Then migrate
+table families in dependency order.
+
+</Step>
+
+</Steps>
+
+## Gotchas
+
+<Callout type="warn">
+**Delta protocol.** Databricks may have written tables with reader/writer
+features (deletion vectors, column mapping, `v2Checkpoint`) that a given Fabric
+Runtime doesn't support yet. Check `DESCRIBE DETAIL` and, if needed, rewrite via
+`CREATE TABLE ... AS SELECT` into a fresh table.
+</Callout>
+
+- **Photon** has no Fabric equivalent by name — the
+  [Native Execution Engine](/docs/data-engineering/native-execution-engine) is
+  the analogue; enable and benchmark it.
+- **`display()`** → `display()` exists in Fabric too, but rich Databricks-only
+  visualizations won't carry over.
+- **Auto Loader (`cloudFiles`)** → use Spark Structured Streaming with the
+  `abfss` source, or a pipeline Copy activity with incremental watermarking.

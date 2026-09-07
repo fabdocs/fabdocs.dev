@@ -1,0 +1,11 @@
+{
+  "title": "Tools & Calculators",
+  "description": "Interactive estimators and local workflow guides.",
+  "icon": "Calculator",
+  "root": true,
+  "pages": [
+    "index",
+    "cu-cost-calculator",
+    "vscode-sync"
+  ]
+}

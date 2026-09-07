@@ -1,0 +1,97 @@
+---
+title: Native Execution Engine
+description: NEE runs Spark operators as native (Velox/Gluten) code. Here is where it helps, where it falls back, and how to verify.
+---
+
+## What NEE is
+
+The Native Execution Engine replaces parts of the JVM-based Spark physical plan
+with a vectorized C++ engine (Gluten + Velox). Same SQL, same DataFrame API —
+the execution of scans, filters, joins, and aggregations moves off the JVM.
+
+## CU impact
+
+NEE typically delivers **2–4× faster** query execution on scan- and
+aggregation-heavy workloads, which translates almost linearly into lower CU
+consumption for the same job. There is no separate charge for NEE.
+
+## Enabling it
+
+<Tabs items={["Environment", "Session", "Per notebook"]}>
+
+<Tab value="Environment">
+
+Set it on a Fabric **Environment** so every notebook and Spark job definition
+attached to it inherits the setting:
+
+`Environment → Spark compute → Acceleration → Native execution engine: On`
+
+</Tab>
+
+<Tab value="Session">
+
+```python
+spark.conf.set("spark.native.enabled", "true")
+```
+
+Must be set before the first action in the session; changing it mid-session has
+no effect on already-planned queries.
+
+</Tab>
+
+<Tab value="Per notebook">
+
+Add a `%%configure` cell at the top:
+
+```python
+%%configure
+{
+  "conf": {
+    "spark.native.enabled": "true"
+  }
+}
+```
+
+</Tab>
+
+</Tabs>
+
+## When NEE falls back to the JVM
+
+NEE runs operator-by-operator. If a single operator is unsupported, **just that
+operator** falls back — the rest of the plan stays native. Common fallbacks:
+
+| Cause | Fix |
+| --- | --- |
+| Python / Pandas UDFs | Rewrite as native Spark SQL expressions where possible |
+| Some regex / date functions | Check the supported-functions list for your Runtime |
+| Complex nested types in specific ops | Flatten before the operator, re-nest after |
+| Writes (NEE accelerates reads/compute, not all write paths) | Expected — no action |
+
+## Verify it is actually running
+
+```python
+df = spark.sql("""
+  SELECT customer_id, sum(amount) AS total
+  FROM silver.orders
+  GROUP BY customer_id
+""")
+df.explain("formatted")
+```
+
+Look for operators prefixed with `Velox` / `Native` (e.g. `VeloxHashAggregate`,
+`NativeScan`). Nodes still shown as plain `HashAggregate` or `Project` fell back
+to the JVM.
+
+<Callout type="info">
+A mixed plan is normal and still faster than all-JVM. Only worry if the
+**expensive** node (the big scan or join) is not native.
+</Callout>
+
+## Tuning checklist
+
+1. Confirm the Runtime supports NEE (1.3 / Spark 3.5+).
+2. Enable at the Environment level, not per notebook, so it is consistent.
+3. Run `explain("formatted")` on your top 5 most expensive queries.
+4. Remove Python UDFs from hot paths — they are the most common fallback.
+5. Re-benchmark CU per run before and after; keep the number in the job's README.

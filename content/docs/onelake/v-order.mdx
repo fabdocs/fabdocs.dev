@@ -1,0 +1,65 @@
+---
+title: V-Order tuning
+description: V-Order trades write cost for read speed. Here is how to decide per table.
+---
+
+## What V-Order is
+
+V-Order is a write-time optimization applied to Parquet files: sorting,
+row-group reordering, dictionary encoding, and compression tuned for the
+VertiPaq engine behind Power BI and the SQL analytics endpoint. It stays 100%
+Parquet-compliant — any Delta reader can still open the files.
+
+## CU impact
+
+- **Write:** +10–25% CU on the writing Spark job (extra sort + encode).
+- **Read:** −15–50% on Direct Lake and SQL-endpoint scans of the same data.
+
+The break-even is *read frequency*. A table read hundreds of times a day by
+Power BI should keep V-Order on. A staging table that is written once and
+consumed by one nightly Spark job should have it **off**.
+
+## Control it at three levels
+
+```python
+# 1. Session default (Fabric enables this by default)
+spark.conf.set("spark.sql.parquet.vorder.default", "true")
+
+# 2. Per write
+(df.write
+   .option("parquet.vorder.enabled", "true")
+   .mode("overwrite")
+   .saveAsTable("mart.sales_by_day"))
+
+# 3. Per table — sticks for every future write
+spark.sql("""
+  ALTER TABLE staging.raw_events
+  SET TBLPROPERTIES ('delta.parquet.vorder.enabled' = 'false')
+""")
+```
+
+## Recommended defaults
+
+| Table role | V-Order |
+| --- | --- |
+| Direct Lake semantic model source | **On** |
+| SQL endpoint / warehouse-facing marts | **On** |
+| Bronze / landing / staging | Off |
+| Intermediate Spark-only silver tables | Off unless also queried by SQL |
+| Large fact tables rebuilt nightly, read all day | On, and pair with `OPTIMIZE` |
+
+## Retrofitting existing tables
+
+Setting the table property does not rewrite existing files. Force it:
+
+```python
+spark.sql("ALTER TABLE mart.sales_by_day SET TBLPROPERTIES ('delta.parquet.vorder.enabled' = 'true')")
+spark.sql("OPTIMIZE mart.sales_by_day")   # rewrites files with V-Order applied
+```
+
+## Runtime
+
+V-Order is available on all current Fabric Runtimes. New workspaces created
+after the 2024 change ship with the session default **disabled** for generic
+Spark workloads — check `spark.sql.parquet.vorder.default` before assuming it is
+on.

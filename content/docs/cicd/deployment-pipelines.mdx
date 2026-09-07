@@ -1,0 +1,100 @@
+---
+title: Deployment pipelines
+description: Stages, item bindings, deployment rules, and how to gate promotion so prod never gets a surprise.
+---
+
+## Model
+
+A deployment pipeline has up to **three stages** (dev, test, prod), each bound to
+a workspace. "Deploy" copies item definitions from the source stage to the
+target stage, matching items by name and applying **deployment rules** to rebind
+stage-specific values.
+
+```text
+[dev workspace] --deploy--> [test workspace] --deploy--> [prod workspace]
+      ^                            ^                            ^
+   Git (main)              deployment rules            deployment rules
+```
+
+## Item bindings
+
+When you deploy, the pipeline pairs items across stages so subsequent deploys
+update rather than duplicate. Bindings can break if an item is renamed or
+recreated — check the pairing view before a big release. Newly added items are
+paired automatically on first deploy.
+
+## Deployment rules
+
+Set per item, on the target stage, to override values that must differ:
+
+| Rule type | Example |
+| --- | --- |
+| Data source | Point a lakehouse/warehouse connection at the prod SQL endpoint |
+| Parameter | Semantic model parameter `Environment = "prod"` |
+| Lakehouse | Rebind a notebook's default lakehouse to the prod lakehouse |
+
+<Callout type="info">
+Prefer [variable libraries](/docs/cicd/variable-libraries) for values consumed
+by notebooks and pipelines. Reserve deployment rules for semantic-model and
+report bindings that variable libraries don't cover.
+</Callout>
+
+## Gating promotion
+
+<Steps>
+
+<Step>
+
+### Compare before deploy
+
+The pipeline shows a diff (changed / new / unchanged) per item. Never deploy
+without reading it.
+
+</Step>
+
+<Step>
+
+### Deploy dev → test via API in CI
+
+Trigger with the Fabric REST API / `fabric-cli` on merge to `main`, not by
+clicking. See [GitHub Actions](/docs/cicd/github-actions).
+
+</Step>
+
+<Step>
+
+### Run automated checks against test
+
+Execute smoke notebooks and a pipeline test run. Assert row counts, refresh
+success, and report render.
+
+</Step>
+
+<Step>
+
+### Require manual approval for test → prod
+
+Gate the prod deploy behind a GitHub Environment protection rule or an approval
+step. A human confirms; the machine executes.
+
+</Step>
+
+</Steps>
+
+## API skeleton
+
+```bash
+# Deploy a stage using fabric-cli
+fab deploy-pipeline "Analytics Pipeline" \
+  --source "Development" \
+  --target "Test" \
+  --items "Ingest.Notebook,Transform.Notebook,Orchestrate.DataPipeline" \
+  --wait
+```
+
+## Rollback
+
+Deployment pipelines do not keep a version history you can "restore". Rollback =
+deploy the previous known-good state from dev (which you can check out from Git
+at the prior tag) forward again. Tag `main` on every prod release so you can
+reconstruct it.

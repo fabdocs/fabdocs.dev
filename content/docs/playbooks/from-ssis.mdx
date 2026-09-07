@@ -1,0 +1,119 @@
+---
+title: From SSIS
+description: Convert control flow, data flow, and SSISDB packages to Fabric Data Pipelines and Dataflows Gen2.
+---
+
+## What maps to what
+
+| SSIS | Fabric | Notes |
+| --- | --- | --- |
+| Package | Data pipeline | One package ≈ one pipeline |
+| Control flow | Pipeline activities + dependencies | Precedence constraints → activity edges (success/failure/completion) |
+| Data flow task | Dataflow Gen2, or Copy + notebook | Transform-heavy → Dataflow; bulk move → Copy |
+| Sequence container | Nested pipeline (invoke pipeline activity) | |
+| For Each Loop | ForEach activity | |
+| Execute SQL task | Script / Stored procedure activity | |
+| Script task (C#/VB) | Notebook activity (Python) | Rewrite the logic |
+| Package/project parameters | Pipeline parameters + [variable library](/docs/cicd/variable-libraries) | |
+| Project connection managers | Fabric connections | Central, reusable, permissioned |
+| SSISDB catalog + env | Deployment pipeline + variable libraries | See [Deployment pipelines](/docs/cicd/deployment-pipelines) |
+| SSIS logging / event handlers | Pipeline monitoring + `On failure` activities | |
+
+## Procedure
+
+<Steps>
+
+<Step>
+
+### Categorize packages
+
+**Straight copy** (extract A → load B): becomes a Copy activity, sometimes
+metadata-driven with one ForEach over a control table. **Transform-heavy**
+(lookups, derived columns, SCD, merges): Dataflow Gen2 or a notebook. **Orchestration
+only** (calls other packages): a parent pipeline.
+
+</Step>
+
+<Step>
+
+### Rebuild the easy copies first
+
+Metadata-driven pattern: a control table lists source objects; a ForEach reads
+it and runs a parameterized Copy. Ten packages collapse into one pipeline.
+
+</Step>
+
+<Step>
+
+### Convert data flows
+
+Map SSIS components:
+
+| SSIS component | Fabric |
+| --- | --- |
+| OLE DB Source / Flat File Source | Dataflow source, or Copy source |
+| Lookup | Merge query (Dataflow) or `join` (notebook) |
+| Derived Column | Custom column / `withColumn` |
+| Conditional Split | Filter branches |
+| Slowly Changing Dimension | `MERGE` on the business key ([patterns](/docs/data-engineering/pyspark-patterns)) |
+| Aggregate | Group by |
+| OLE DB / ADO NET Destination | Dataflow data destination, or `saveAsTable` |
+| Data Conversion | Change type step |
+
+</Step>
+
+<Step>
+
+### Replace Script Tasks
+
+Port the C#/VB to Python in a Notebook activity. Common cases: calling a REST
+API, custom file parsing, sending notifications — all straightforward in Python.
+
+</Step>
+
+<Step>
+
+### Recreate environments
+
+SSISDB environment variables → variable library value sets per stage. Connection
+managers → Fabric connections, rebound per stage by deployment rules or the
+variable library.
+
+</Step>
+
+<Step>
+
+### Wire failure handling
+
+SSIS event handlers (`OnError`) → activities on the pipeline's failure path:
+log to a table, send a Teams/email alert, optionally continue or stop.
+
+</Step>
+
+<Step>
+
+### Validate and cut over
+
+Run the old SSIS job and the new pipeline against the same window. Compare target
+row counts and checksums. Keep the SQL Agent job disabled-but-present for one
+cycle as the rollback.
+
+</Step>
+
+</Steps>
+
+<Callout type="info">
+The **Azure-SSIS Integration Runtime** in ADF can lift-and-shift existing
+packages unchanged as an interim step. It is a bridge, not a destination — you
+still pay to run the SSIS runtime and gain none of Fabric's CU smoothing. Use it
+only to buy time on a hard deadline.
+</Callout>
+
+## Gotchas
+
+- **Row-by-row Script Component transforms** don't translate to set-based
+  Dataflow/Spark cleanly — redesign them as joins/merges.
+- **Package configurations via XML/registry** — there is no equivalent; all
+  config is parameters + variable libraries.
+- **32-bit-only drivers / legacy providers** — no path forward; the source
+  connection must be reachable with a modern driver.
