@@ -5,6 +5,17 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      // Canonical host: send www.fabdocs.dev -> fabdocs.dev, preserving the path.
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.fabdocs.dev' }],
+        destination: 'https://fabdocs.dev/:path*',
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       // Serve the Markdown representation of a docs page at `<path>.md`.
