@@ -1,6 +1,7 @@
 import { source } from '@/lib/source';
 import { DocsLayout } from 'fumadocs-ui/layouts/notebook';
 import { baseOptions } from '@/lib/layout.shared';
+import { AISearch, AISearchPanel } from '@/components/ai/search';
 
 export default function Layout({ children }: LayoutProps<'/docs'>) {
   return (
@@ -11,7 +12,10 @@ export default function Layout({ children }: LayoutProps<'/docs'>) {
       nav={{ ...baseOptions().nav, mode: 'top' }}
       sidebar={{ defaultOpenLevel: 0 }}
     >
-      {children}
+      <AISearch>
+        <AISearchPanel />
+        {children}
+      </AISearch>
     </DocsLayout>
   );
 }

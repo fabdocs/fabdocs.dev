@@ -77,6 +77,38 @@ so CI deploys are the reliable path. `wrangler.jsonc` holds the Worker config
 Then point the `fabdocs.dev` custom domain at the Worker under
 **Settings → Domains & Routes**.
 
+## Ask AI assistant + Pro subscription
+
+An "Ask AI" button on every docs page opens a chat panel (`src/components/ai/search.tsx`)
+that streams from `POST /api/chat` — Claude with a `search` tool grounded in the
+docs content (flexsearch over the processed markdown), citing the pages it used.
+
+**Tiers** (`src/lib/ai-limits.ts`): Free = 5 questions/day per IP; **Pro ($5/mo)**
+= 200/day. Pro is a cookie-based Stripe subscription — no user accounts:
+
+- `POST /api/checkout` → Stripe Checkout → `GET /api/checkout/success` sets a
+  signed `fd_sub` cookie holding the Stripe customer id
+- `POST /api/stripe/webhook` writes subscription status to KV (`sub:<cid>`)
+- `src/lib/subscription.ts` trusts the cookie for 6h, then re-validates against KV
+- `POST /api/billing/portal` → Stripe billing portal
+- `/pricing` page reflects current plan and gates the CTA
+
+**Config** (Cloudflare Worker → Settings → Variables and Secrets; see
+`.dev.vars.example`):
+
+| Var | Needed for | Notes |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | the assistant | without it, `/api/chat` returns 503 |
+| `ANTHROPIC_MODEL` | — | optional, defaults to `claude-haiku-4-5-20251001` |
+| `COOKIE_SIGNING_SECRET` | Pro | `openssl rand -base64 32` |
+| `STRIPE_SECRET_KEY` / `STRIPE_PRICE_ID` | Pro checkout | a $5/mo recurring Price |
+| `STRIPE_WEBHOOK_SECRET` | Pro sync | endpoint on `/api/stripe/webhook`, events `customer.subscription.*` |
+
+KV namespace `KV` (binding in `wrangler.jsonc`) backs both rate-limiting
+(`ratelimit:` keys) and subscription state (`sub:` keys). The whole feature
+degrades gracefully: no `ANTHROPIC_API_KEY` → assistant off; no Stripe vars →
+Pro shows "coming soon"; everything else keeps working.
+
 ## SEO & analytics
 
 - `src/app/sitemap.ts` and `src/app/robots.ts` generate `/sitemap.xml` and

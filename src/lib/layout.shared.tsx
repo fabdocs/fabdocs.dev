@@ -39,6 +39,11 @@ export function baseOptions(): BaseLayoutProps {
         url: '/docs/playbooks',
         active: 'nested-url',
       },
+      {
+        text: 'Pricing',
+        url: '/pricing',
+        active: 'url',
+      },
     ],
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
   };

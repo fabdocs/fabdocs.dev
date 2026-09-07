@@ -29,4 +29,5 @@ next-env.d.ts
 /.open-next/
 /.wrangler/
 .dev.vars
-cloudflare-env.d.ts
+# cloudflare-env.d.ts is committed so CI type-checks resolve the bindings;
+# regenerate with `npm run cf-typegen` after changing wrangler.jsonc.

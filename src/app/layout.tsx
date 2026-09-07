@@ -46,6 +46,18 @@ export default function Layout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className={inter.className} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
+        {/*
+          OpenNext bundles the server with esbuild `keepNames`, which appends
+          `__name(fn,"fn")` calls. next-themes serialises its init function to a
+          string for an inline <script>, so that call can ship to the browser
+          without its helper and throw `ReferenceError: __name is not defined`
+          before the theme class is applied. Define a no-op first.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: 'globalThis.__name||(globalThis.__name=function(f){return f});',
+          }}
+        />
         <RootProvider>{children}</RootProvider>
         {cfBeaconToken ? (
           <Script

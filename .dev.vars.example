@@ -1,0 +1,18 @@
+# Copy to `.dev.vars` for local `npm run preview`, and set the same keys as
+# encrypted variables on the Cloudflare Worker (Settings -> Variables and Secrets).
+# The site runs without any of these — AI and billing just degrade gracefully.
+
+# --- Ask AI assistant ---
+# Required for the assistant to work at all.
+ANTHROPIC_API_KEY=
+# Optional. Defaults to claude-haiku-4-5-20251001 (cheap, fine for grounded Q&A).
+# ANTHROPIC_MODEL=claude-sonnet-5
+
+# --- Pro subscription (Stripe) ---
+# Required to prove a subscriber cookie. Generate: `openssl rand -base64 32`
+COOKIE_SIGNING_SECRET=
+# From the Stripe dashboard. Without these, Pro shows "coming soon".
+STRIPE_SECRET_KEY=
+STRIPE_PRICE_ID=
+# From the Stripe webhook endpoint (events: customer.subscription.*)
+STRIPE_WEBHOOK_SECRET=
