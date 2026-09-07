@@ -14,6 +14,7 @@ import {
 import { appName } from '@/lib/shared';
 import { JsonLd } from '@/components/json-ld';
 import { organizationJsonLd, websiteJsonLd } from '@/lib/seo';
+import { NewsletterSignup } from '@/components/newsletter-signup';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
@@ -276,8 +277,13 @@ spark.conf.set(
         </div>
       </section>
 
+      {/* Newsletter */}
+      <section className="mx-auto w-full max-w-6xl px-4 py-16">
+        <NewsletterSignup source="home" />
+      </section>
+
       {/* CTA */}
-      <section className="mx-auto w-full max-w-6xl px-4 py-24 text-center">
+      <section className="mx-auto w-full max-w-6xl px-4 pb-24 pt-8 text-center">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
           Start with the slice that hurts most
         </h2>

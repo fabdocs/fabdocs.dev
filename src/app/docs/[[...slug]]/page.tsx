@@ -16,6 +16,7 @@ import { JsonLd } from '@/components/json-ld';
 import { articleJsonLd, breadcrumbJsonLd } from '@/lib/seo';
 import { AISearchTrigger } from '@/components/ai/search';
 import { MessageCircleIcon } from 'lucide-react';
+import { NewsletterSignup } from '@/components/newsletter-signup';
 
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
@@ -66,6 +67,12 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
           })}
         />
       </DocsBody>
+      <div className="mt-10 border-t border-fd-border pt-6">
+        <p className="mb-3 text-sm font-medium text-fd-foreground">
+          Stay ahead of Fabric changes
+        </p>
+        <NewsletterSignup source="docs" variant="inline" />
+      </div>
     </DocsPage>
   );
 }

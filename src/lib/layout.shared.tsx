@@ -40,6 +40,11 @@ export function baseOptions(): BaseLayoutProps {
         active: 'nested-url',
       },
       {
+        text: 'Kits',
+        url: '/packs',
+        active: 'url',
+      },
+      {
         text: 'Pricing',
         url: '/pricing',
         active: 'url',

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { appName, gitConfig } from '@/lib/shared';
+import { NewsletterSignup } from '@/components/newsletter-signup';
 
 const columns = [
   {
@@ -15,8 +16,9 @@ const columns = [
     heading: 'Applied',
     links: [
       { label: 'CU cost calculator', href: '/docs/tools/cu-cost-calculator' },
-      { label: 'VS Code sync', href: '/docs/tools/vscode-sync' },
+      { label: 'Spark pool sizer', href: '/docs/tools/spark-pool-sizer' },
       { label: 'Migration playbooks', href: '/docs/playbooks' },
+      { label: 'Starter kits', href: '/packs' },
     ],
   },
   {
@@ -35,7 +37,7 @@ export function SiteFooter() {
     <footer className="border-t border-fd-border bg-fd-card/40">
       <div className="mx-auto max-w-6xl px-4 py-14">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
+          <div className="sm:col-span-2 lg:col-span-1">
             <div className="flex items-center gap-2">
               <span
                 aria-hidden
@@ -48,6 +50,12 @@ export function SiteFooter() {
             <p className="mt-3 max-w-xs text-sm text-fd-muted-foreground">
               The production engineering manual for Microsoft Fabric.
             </p>
+            <div className="mt-4 text-xs font-semibold uppercase tracking-wide text-fd-muted-foreground">
+              Change briefing
+            </div>
+            <div className="mt-3">
+              <NewsletterSignup source="footer" variant="inline" />
+            </div>
           </div>
 
           {columns.map((col) => (

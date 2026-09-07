@@ -11,6 +11,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: abs('/'), lastModified: now, changeFrequency: 'weekly', priority: 1 },
     { url: abs('/docs'), lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
+    { url: abs('/pricing'), lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
+    { url: abs('/packs'), lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
   ];
 
   const docsRoutes: MetadataRoute.Sitemap = source.getPages().map((page) => ({
