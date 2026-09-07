@@ -1,0 +1,188 @@
+---
+title: notebookutils reference
+description: The practical reference for notebookutils (formerly mssparkutils) — filesystem, notebook orchestration, secrets, lakehouse, and runtime helpers in Fabric notebooks.
+---
+
+`notebookutils` is the built-in helper module in Fabric notebooks. It replaced
+`mssparkutils` (which still works as an alias). It only exists inside a Fabric
+Spark session — guard imports so local unit tests don't break:
+
+```python
+try:
+    import notebookutils
+except ImportError:
+    notebookutils = None  # running outside Fabric
+```
+
+## Filesystem — `notebookutils.fs`
+
+Works against OneLake, the attached lakehouse, and `abfss://` URLs.
+
+| Call | Purpose |
+| --- | --- |
+| `fs.ls(path)` | List files/dirs. Returns objects with `.name`, `.path`, `.size`, `.isDir`, `.isFile`, `.modifyTime` |
+| `fs.mkdirs(path)` | Create directory (and parents) |
+| `fs.cp(src, dst, recurse=False)` | Copy. Set `recurse=True` for folders |
+| `fs.mv(src, dst, recurse=False)` | Move / rename |
+| `fs.rm(path, recurse=False)` | Delete |
+| `fs.put(path, content, overwrite=False)` | Write a string to a file |
+| `fs.head(path, maxBytes=1024*100)` | Read first N bytes as string |
+| `fs.append(path, content, createFileIfNotExists=True)` | Append text |
+| `fs.exists(path)` | Bool |
+| `fs.getMountPath(mountPoint)` | Local path for a mount |
+
+```python
+# Lakehouse-relative paths
+for f in notebookutils.fs.ls("Files/landing/2026-01-01"):
+    print(f.name, f.size, f.modifyTime)
+
+notebookutils.fs.mkdirs("Files/archive")
+notebookutils.fs.mv("Files/landing/2026-01-01", "Files/archive/2026-01-01", recurse=True)
+
+# Absolute ADLS
+notebookutils.fs.cp(
+    "abfss://raw@acct.dfs.core.windows.net/orders/",
+    "Files/bronze/orders/",
+    recurse=True,
+)
+```
+
+<Callout type="warn">
+`fs.put` / `fs.append` are for small control files (manifests, watermarks,
+`_SUCCESS` flags). For data, write with Spark (`df.write`) so you get
+partitioning, Delta transactions, and parallelism.
+</Callout>
+
+## Notebook orchestration — `notebookutils.notebook`
+
+| Call | Purpose |
+| --- | --- |
+| `notebook.run(name, timeoutSeconds=90, arguments={}, workspaceId=None)` | Run another notebook synchronously, return its exit value |
+| `notebook.runMultiple(dagOrList, {"timeoutInSeconds": ...})` | Run many notebooks with a dependency DAG, in parallel where possible |
+| `notebook.exit(value)` | End the current notebook and return `value` to the caller |
+| `notebook.help()` | Print inline docs |
+
+```python
+# Sequential child run
+result = notebookutils.notebook.run(
+    "transform_orders",
+    timeoutSeconds=1800,
+    arguments={"run_date": "2026-01-01", "full_reload": "false"},
+)
+
+# Parallel DAG — great for fan-out silver/gold builds
+dag = {
+    "activities": [
+        {"name": "dim_customer", "path": "build_dim_customer", "timeoutPerCellInSeconds": 600},
+        {"name": "dim_product",  "path": "build_dim_product",  "timeoutPerCellInSeconds": 600},
+        {"name": "fact_sales",   "path": "build_fact_sales",   "timeoutPerCellInSeconds": 1200,
+         "dependencies": ["dim_customer", "dim_product"]},
+    ],
+    "timeoutInSeconds": 3600,
+    "concurrency": 5,
+}
+notebookutils.notebook.runMultiple(dag)
+```
+
+<Callout type="info">
+Prefer a **data pipeline** for production orchestration (ret/retry, alerting,
+scheduling, monitoring). Use `notebook.run` / `runMultiple` for logic that
+belongs together in one unit of work, or when the DAG is dynamic.
+</Callout>
+
+### Arguments are strings
+
+Everything in `arguments` arrives as a string in the child's parameter cell.
+Parse explicitly:
+
+```python
+# child notebook parameter cell
+run_date = "2026-01-01"
+full_reload = "false"
+
+# then
+full_reload = full_reload.lower() == "true"
+```
+
+## Secrets & credentials — `notebookutils.credentials`
+
+| Call | Purpose |
+| --- | --- |
+| `credentials.getSecret(akvUrl, secretName)` | Read a secret from Azure Key Vault |
+| `credentials.getToken(audience)` | AAD token for the running identity (e.g. `"storage"`, `"pbi"`, `"keyvault"`) |
+| `credentials.getSecretWithLS(linkedService, secretName)` | Secret via a linked service |
+
+```python
+conn = notebookutils.credentials.getSecret(
+    "https://my-vault.vault.azure.net/", "orders-db-connstr"
+)
+token = notebookutils.credentials.getToken("storage")
+```
+
+Never print secrets or write them to a Delta table / log. See
+[Workspace identity](/docs/governance/workspace-identity) for the secret-free
+path to Azure storage.
+
+## Lakehouse & artifacts — `notebookutils.lakehouse`
+
+| Call | Purpose |
+| --- | --- |
+| `lakehouse.get(name, workspaceId=None)` | Lakehouse metadata (id, paths) |
+| `lakehouse.create(name, description, workspaceId)` | Create one |
+| `lakehouse.list(workspaceId)` | List lakehouses |
+
+```python
+lh = notebookutils.lakehouse.get("sales_lh")
+print(lh["properties"]["abfsPath"])   # abfss://.../sales_lh.Lakehouse
+```
+
+Related: `notebookutils.runtime.context` gives the current workspace id,
+lakehouse id, notebook name, and user — useful for structured logging.
+
+```python
+ctx = notebookutils.runtime.context
+log = {"workspace": ctx["currentWorkspaceId"], "notebook": ctx["currentNotebookName"]}
+```
+
+## Session — `notebookutils.session`
+
+| Call | Purpose |
+| --- | --- |
+| `session.stop()` | Stop the current Spark session (frees the capacity sooner in a pipeline) |
+| `mssparkutils.session.restartPython()` | Restart the Python interpreter, keep the Spark session |
+
+Calling `session.stop()` at the end of a scheduled notebook returns the pool to
+the capacity faster than waiting for the idle timeout — a small CU saving that
+adds up across many jobs.
+
+## `mssparkutils` vs `notebookutils`
+
+`mssparkutils` is the old name and is still available. New code should use
+`notebookutils`. The surface is nearly identical; a few newer helpers
+(`notebookutils.runtime.context`, some `lakehouse` calls) are only on
+`notebookutils`.
+
+```python
+import notebookutils          # preferred
+from notebookutils import mssparkutils  # legacy alias, same functions
+```
+
+## Common recipes
+
+```python
+# Idempotent "process once" guard using a marker file
+marker = f"Files/_processed/{run_date}.done"
+if notebookutils.fs.exists(marker):
+    notebookutils.notebook.exit("skipped: already processed")
+
+# ... do the work ...
+
+notebookutils.fs.put(marker, "ok", overwrite=True)
+notebookutils.notebook.exit("ok")
+```
+
+```python
+# Return a small result set to the calling pipeline (must be a string)
+import json
+notebookutils.notebook.exit(json.dumps({"rows_written": written, "run_date": run_date}))
+```

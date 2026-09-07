@@ -8,6 +8,7 @@
     "delta-optimization",
     "v-order",
     "vacuum-and-retention",
-    "shortcuts"
+    "shortcuts",
+    "mirroring"
   ]
 }

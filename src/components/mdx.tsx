@@ -5,6 +5,7 @@ import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 import { File, Folder, Files } from 'fumadocs-ui/components/files';
 import { CuCalculator } from '@/components/cu-calculator';
+import { PoolSizer } from '@/components/pool-sizer';
 import type { MDXComponents } from 'mdx/types';
 
 export function getMDXComponents(components?: MDXComponents) {
@@ -21,6 +22,7 @@ export function getMDXComponents(components?: MDXComponents) {
     Folder,
     Files,
     CuCalculator,
+    PoolSizer,
     ...components,
   } satisfies MDXComponents;
 }

@@ -1,0 +1,123 @@
+---
+title: Database mirroring
+description: Near-real-time replicas of Snowflake, Azure SQL, Cosmos DB, and Postgres landing as Delta tables in OneLake — how it works, what it costs, and when to use it over a shortcut or a pipeline.
+---
+
+**Mirroring** continuously replicates an external operational database into a
+Fabric-managed lakehouse as Delta tables. Change data is applied on a low-latency
+loop (typically seconds to a few minutes), with no pipeline to build and no
+compute you manage.
+
+## Supported sources
+
+| Source | Notes |
+| --- | --- |
+| Snowflake | Table-level selection; uses Snowflake streams under the hood |
+| Azure SQL Database | CDC-based; needs `ALTER DATABASE ... SET CHANGE_TRACKING` permissions |
+| Azure SQL Managed Instance | As above |
+| Azure Cosmos DB (NoSQL) | Mirrors containers; JSON flattened to columns |
+| Azure Database for PostgreSQL | Logical replication |
+| *(open mirroring)* | Bring-your-own change feed via the Open Mirroring API |
+
+*Confirm the current source matrix in Microsoft docs — it expands often.*
+
+## CU impact
+
+Mirroring **compute** (the replication engine) is free. You pay for:
+
+- **OneLake storage** for the mirrored Delta tables — and Microsoft includes a
+  free storage allowance for mirrored data proportional to your capacity SKU
+  (e.g. a chunk of free mirrored GB per F-SKU). Storage beyond the allowance is
+  billed at the normal OneLake rate.
+- **Reads** of the mirrored tables (Spark, SQL endpoint, Direct Lake) — same as
+  any other Delta table.
+
+Net: for a moderate operational DB, mirroring is often close to free to land,
+and you only pay when you query it.
+
+## How it lands
+
+```text
+Mirrored DB (Fabric item)
+└── Mirrored<Name>.Lakehouse   (auto-created, read-only)
+    └── Tables/
+        ├── dbo_customers/      Delta, kept in sync
+        └── dbo_orders/
+```
+
+The mirrored lakehouse gets a SQL analytics endpoint and can back a **Direct
+Lake** semantic model immediately. Tables are **read-only** from Fabric — writes
+go to the source system.
+
+## Setup
+
+<Steps>
+
+<Step>
+
+### Prepare the source
+
+- **Azure SQL:** enable change tracking / CDC; grant the connection principal
+  `VIEW CHANGE TRACKING` and `SELECT` on the tables.
+- **Snowflake:** a warehouse for the initial snapshot; a role with `SELECT` +
+  `CREATE STREAM` on the schema.
+- **Cosmos DB:** analytical store not required; mirroring reads the change feed.
+
+</Step>
+
+<Step>
+
+### Create the Mirrored Database item
+
+`+ New → Mirrored <source>`. Provide the connection (prefer a service principal
+or [workspace identity](/docs/governance/workspace-identity), not a personal
+account).
+
+</Step>
+
+<Step>
+
+### Select tables
+
+Pick specific tables, not "everything". Every mirrored table costs storage and
+adds replication load on the source.
+
+</Step>
+
+<Step>
+
+### Monitor replication lag
+
+The Mirrored Database has a monitoring tab showing rows replicated and lag per
+table. Alert on lag growth — it usually means a source-side schema change or a
+long-running transaction blocking the change feed.
+
+</Step>
+
+</Steps>
+
+## Mirroring vs shortcut vs pipeline
+
+| Need | Use |
+| --- | --- |
+| Live replica of an operational DB, minimal effort, Direct Lake ready | **Mirroring** |
+| Data already in ADLS/S3 as Delta/Parquet you don't want to copy | [Shortcut](/docs/onelake/shortcuts) |
+| Transformations on ingest, non-supported source, full control of schedule | [Data pipeline](/docs/cicd/deployment-pipelines) + notebook |
+| Historical backfill + ongoing CDC with custom logic | Pipeline (watermark) or Open Mirroring |
+
+## Gotchas
+
+<Callout type="warn">
+**Source schema changes.** Adding a column is usually handled; dropping or
+retyping a column, or renaming a table, can pause replication for that table
+until you re-map it. Treat source DDL as a change that needs coordination.
+</Callout>
+
+- **Primary key required.** Tables without a PK (or unique index) can't be
+  mirrored incrementally.
+- **Large transactions** on the source delay the change feed — mirroring lag
+  spikes during bulk loads upstream.
+- **Deletes** are replicated as Delta deletes; if the source hard-deletes a lot,
+  schedule `OPTIMIZE` + [`VACUUM`](/docs/onelake/vacuum-and-retention) on the
+  mirrored tables (you can run maintenance even though you can't write data).
+- **Cross-region** mirroring incurs egress on the source cloud.

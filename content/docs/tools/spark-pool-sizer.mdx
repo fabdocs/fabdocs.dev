@@ -1,0 +1,62 @@
+---
+title: Spark pool sizing estimator
+description: Estimate how many nodes and what node size a Fabric Spark job needs to finish in a target window — plus a memory sanity check and CU cost per run.
+---
+
+Sizing a Fabric Spark pool by trial and error burns time and CUs. This estimator
+gives you a starting configuration from three inputs: how much data the job
+reads, how long it may take, and how shuffle-heavy it is.
+
+<PoolSizer />
+
+## The model
+
+```text
+coresNeeded = dataMB / (throughputPerCore × targetSeconds)
+nodes       = max(3, ceil(coresNeeded / nodeVCores))
+memoryOK    = nodes × nodeMemGB × 0.6  ≥  dataGB × shuffleFactor
+CU-seconds  = nodes × nodeVCores × 0.5 × targetSeconds
+```
+
+### Per-core throughput assumptions
+
+Conservative effective MB/s per vCore — read + decode + transform, not raw scan:
+
+| Workload shape | MB/s per vCore | Shuffle factor |
+| --- | --- | --- |
+| Scan / filter / aggregate | 45 | 0.3 |
+| Joins / heavy shuffle | 22 | 1.5 |
+| ML training / UDF-heavy | 9 | 2.0 |
+
+`shuffleFactor` estimates peak shuffle + cache footprint as a multiple of input
+size; `0.6` is the fraction of node memory realistically usable for that after
+overhead.
+
+## How to use the result
+
+1. **Start one size up.** The estimate targets your deadline exactly; give the
+   first production runs headroom, then trim.
+2. **Prefer fewer bigger nodes for shuffle-heavy jobs** — less network, larger
+   contiguous memory for shuffle. Prefer more smaller nodes for embarrassingly
+   parallel scans.
+3. **If it says "memory-tight,"** don't just accept disk spill — that can
+   multiply runtime. Bump node size, add nodes, or narrow the job (fewer
+   columns, partition-scoped `replaceWhere`).
+4. **Set the pool as an autoscale range** with this as the max, so small runs
+   don't hold the whole pool.
+
+## What the estimate ignores
+
+- **Data skew** — one hot key can make a "right-sized" pool stall on a single task.
+- **The [Native Execution Engine](/docs/data-engineering/native-execution-engine)** —
+  can cut CPU 2–4× on eligible operators, so a NEE-enabled job may need fewer
+  cores than the estimate.
+- **Broadcast joins** — a small dimension broadcast avoids a shuffle entirely.
+- **File layout** — thousands of tiny files inflate planning time regardless of
+  core count. Fix that first ([Delta optimization](/docs/onelake/delta-optimization)).
+- **Startup latency** — pool spin-up (or a warm session) is on top of the
+  compute time.
+
+Benchmark one real run, compare CU-seconds against the
+[capacity picture](/docs/tools/capacity-sku-reference), and adjust the inputs
+until the estimate matches reality — then reuse it for similar jobs.

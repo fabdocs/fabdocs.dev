@@ -6,6 +6,7 @@
   "pages": [
     "index",
     "pyspark-patterns",
+    "notebookutils-reference",
     "native-execution-engine",
     "resource-profiles",
     "runtime-upgrades"

@@ -6,6 +6,8 @@
   "pages": [
     "index",
     "cu-cost-calculator",
+    "spark-pool-sizer",
+    "capacity-sku-reference",
     "vscode-sync"
   ]
 }

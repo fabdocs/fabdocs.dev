@@ -1,0 +1,77 @@
+---
+title: Fabric capacity SKU reference
+description: F2 to F2048 — Capacity Units, the Power BI SKU equivalence, autoscale behavior, and which workloads each tier realistically supports.
+---
+
+A Fabric capacity is bought as an **F SKU**. The number is the **Capacity Units
+(CU)** it provides. Every workload — Spark, Warehouse, Pipelines, Direct Lake,
+Eventstream, KQL — draws from that shared pool, smoothed over time.
+
+<Callout type="info">
+Pair this with the [CU cost & capacity calculator](/docs/tools/cu-cost-calculator)
+to estimate which tier a given workload needs. Prices below are illustrative
+pay-as-you-go, USD, and vary by region — always confirm in the Azure pricing
+calculator.
+</Callout>
+
+## The SKUs
+
+| SKU | CUs | Power BI SKU equiv. | Spark vCores (base / burst) | Rough PAYG $/hr | Typical fit |
+| --- | --- | --- | --- | --- | --- |
+| **F2** | 2 | — | 4 / 20 | ~$0.36 | Dev/test, tiny workloads, learning |
+| **F4** | 4 | — | 8 / 24 | ~$0.72 | Small team, light pipelines |
+| **F8** | 8 | EM1 | 16 / 48 | ~$1.44 | Small prod, a few models |
+| **F16** | 16 | EM2 | 32 / 96 | ~$2.88 | Departmental analytics |
+| **F32** | 32 | EM3 | 64 / 192 | ~$5.76 | Mid prod, mixed Spark + Warehouse |
+| **F64** | 64 | P1 | 128 / 384 | ~$11.52 | **Free Power BI viewing** for report consumers; common prod baseline |
+| **F128** | 128 | P2 | 256 / 768 | ~$23.04 | Large prod, heavy concurrency |
+| **F256** | 256 | P3 | 512 / 1536 | ~$46.08 | Enterprise, many concurrent Spark jobs |
+| **F512** | 512 | P4 | 1024 / 3072 | ~$92.16 | Very large enterprise |
+| **F1024** | 1024 | P5 | 2048 / 6144 | ~$184 | |
+| **F2048** | 2048 | — | 4096 / 12288 | ~$369 | |
+
+Spark vCore figures are approximate defaults and depend on pool/node
+configuration; "burst" reflects the higher transient allocation Spark can take.
+
+## The F64 line
+
+**F64 (and above)** removes the per-user Power BI Pro license requirement for
+**viewing** content in that capacity's workspaces. Authors still need Pro/PPU.
+Below F64, every viewer needs a Pro license. This often makes F64 cheaper than
+F32 + dozens of Pro seats — model both.
+
+## Autoscale, bursting, smoothing, throttling
+
+- **Smoothing:** background jobs (scheduled notebooks, pipeline runs, model
+  refreshes) are spread over ~24h; interactive operations over ~5 minutes. A
+  short spike doesn't require a SKU sized for the peak instant.
+- **Bursting:** a single job can transiently use more CU than the SKU nominally
+  provides; the overage is smoothed back against the capacity.
+- **Throttling:** sustained overuse moves the capacity through
+  *interactive delay → interactive rejection → background rejection*. The
+  Capacity Metrics app shows how close you are.
+- **Autoscale (Spark):** optional — bills extra Spark capacity per-second beyond
+  the base SKU instead of throttling. Good for spiky Spark, a cost risk if left
+  unbounded.
+
+## Reserved vs pay-as-you-go
+
+- **Pay-as-you-go:** per-second billing, pause/resume anytime. Good for
+  dev/test and workloads you can pause outside business hours.
+- **Reserved (1-year):** ~40%+ cheaper, but you commit and can't pause for
+  credit. Use for the steady-state production baseline; keep a small PAYG
+  capacity for burst/dev.
+
+A common pattern: **reserved F64 baseline** + a **PAYG F-SKU** for dev that's
+paused nightly, + Spark autoscale with a ceiling for month-end spikes.
+
+## Choosing
+
+1. Estimate peak CU for your heaviest concurrent workload with the
+   [calculator](/docs/tools/cu-cost-calculator).
+2. Add headroom for concurrency (reports + pipelines + ad-hoc Spark at the same
+   time), typically 30–50%.
+3. If you have many report viewers, check whether **F64** beats a smaller SKU
+   plus Pro licenses.
+4. Start one tier up from your estimate for the first month, watch the Capacity
+   Metrics app, then right-size down.
