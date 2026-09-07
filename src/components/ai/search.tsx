@@ -516,6 +516,12 @@ export function useAISearchContext() {
   return use(Context)!;
 }
 
+/** Like {@link useAISearchContext} but returns null outside the provider
+ *  (e.g. an MDX code block rendered on a non-docs page). */
+export function useAISearchContextOptional() {
+  return use(Context);
+}
+
 function useChatContext() {
   return use(Context)!.chat;
 }

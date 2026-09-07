@@ -6,11 +6,13 @@ import { TypeTable } from 'fumadocs-ui/components/type-table';
 import { File, Folder, Files } from 'fumadocs-ui/components/files';
 import { CuCalculator } from '@/components/cu-calculator';
 import { PoolSizer } from '@/components/pool-sizer';
+import { AICodeBlock } from '@/components/ai-code-block';
 import type { MDXComponents } from 'mdx/types';
 
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
+    pre: AICodeBlock,
     Tab,
     Tabs,
     Step,
