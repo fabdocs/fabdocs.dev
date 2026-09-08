@@ -1,0 +1,46 @@
+# Fabric CI/CD Automation Pack — PR validation
+# Static checks on every PR into main. No Fabric API calls, no secrets needed
+# for the checks themselves; login is included so you can extend it with
+# read-only API validation later.
+name: Validate Fabric items
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FAB_VERSION: "1.0.0" # EDIT: pin to the ms-fabric-cli version you tested
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install fabric-cli
+        run: pip install "ms-fabric-cli==${FAB_VERSION}"
+
+      - name: Static checks
+        run: bash scripts/checks.sh
+
+      # Optional: authenticate and add read-only API validation (item diff,
+      # pipeline pairing check). Kept here so the wiring is ready.
+      - name: Login (for extended checks)
+        if: ${{ vars.ENABLE_API_VALIDATION == 'true' }}
+        env:
+          FABRIC_CLIENT_ID: ${{ secrets.FABRIC_CLIENT_ID }}
+          FABRIC_CLIENT_SECRET: ${{ secrets.FABRIC_CLIENT_SECRET }}
+          FABRIC_TENANT_ID: ${{ secrets.FABRIC_TENANT_ID }}
+        run: |
+          fab auth login \
+            -u "$FABRIC_CLIENT_ID" \
+            -p "$FABRIC_CLIENT_SECRET" \
+            --tenant "$FABRIC_TENANT_ID"

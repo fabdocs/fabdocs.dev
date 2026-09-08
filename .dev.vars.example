@@ -16,3 +16,8 @@ STRIPE_SECRET_KEY=
 STRIPE_PRICE_ID=
 # From the Stripe webhook endpoint (events: customer.subscription.*)
 STRIPE_WEBHOOK_SECRET=
+
+# --- Local only ---
+# Set to 1 to bypass the Pro check on /api/packs/<slug> so you can test the
+# download without a live subscription. Never set this on the deployed Worker.
+# PACKS_DEV_UNLOCK=1

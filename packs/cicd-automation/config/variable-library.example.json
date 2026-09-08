@@ -1,0 +1,41 @@
+{
+  "$comment": [
+    "Fabric CI/CD Automation Pack — variable library value sets.",
+    "One 'core' library, three value sets. Notebooks and pipelines read the",
+    "variable by name; the active value set is set per stage during deploy",
+    "(see deploy.yml / your pipeline). CI check: every variable must exist in",
+    "EVERY value set — a missing key silently falls back to Default.",
+    "Docs: https://fabdocs.dev/docs/cicd/variable-libraries"
+  ],
+  "library": "core",
+  "variables": [
+    "lakehouse_id",
+    "adls_landing_path",
+    "capacity_region",
+    "notification_email",
+    "environment_name"
+  ],
+  "valueSets": {
+    "Default": {
+      "lakehouse_id": "00000000-0000-0000-0000-DEVLAKEHOUSE",
+      "adls_landing_path": "abfss://landing@devstorage.dfs.core.windows.net/",
+      "capacity_region": "eastus",
+      "notification_email": "data-eng-dev@example.com",
+      "environment_name": "dev"
+    },
+    "Test": {
+      "lakehouse_id": "00000000-0000-0000-0000-TESTLAKEHOUSE",
+      "adls_landing_path": "abfss://landing@teststorage.dfs.core.windows.net/",
+      "capacity_region": "eastus",
+      "notification_email": "data-eng-test@example.com",
+      "environment_name": "test"
+    },
+    "Prod": {
+      "lakehouse_id": "00000000-0000-0000-0000-PRODLAKEHOUSE",
+      "adls_landing_path": "abfss://landing@prodstorage.dfs.core.windows.net/",
+      "capacity_region": "eastus",
+      "notification_email": "data-eng-oncall@example.com",
+      "environment_name": "prod"
+    }
+  }
+}

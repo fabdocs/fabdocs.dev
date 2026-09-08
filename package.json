@@ -3,11 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prebuild": "node scripts/build-packs.mjs",
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
     "types:check": "next typegen && tsc --noEmit",
     "lint": "eslint",
+    "build:packs": "node scripts/build-packs.mjs",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
@@ -18,6 +20,7 @@
     "ai": "^7.0.93",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.4",
+    "fflate": "^0.8.3",
     "flexsearch": "^0.8.212",
     "fumadocs-core": "16.15.8",
     "fumadocs-mdx": "15.4.0",

@@ -13,6 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: abs('/docs'), lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
     { url: abs('/pricing'), lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: abs('/packs'), lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
+    { url: abs('/packs/cicd-automation'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
   ];
 
   const docsRoutes: MetadataRoute.Sitemap = source.getPages().map((page) => ({

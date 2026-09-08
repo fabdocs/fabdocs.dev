@@ -20,9 +20,10 @@ const PACKS = [
   {
     icon: GitBranch,
     title: 'CI/CD Automation Pack',
-    status: 'In development',
+    status: 'Available',
     body: 'Drop-in GitHub Actions workflows for validate-on-PR and promote-on-merge, deployment-pipeline scripts, and parameter.yml / variable-library templates for Dev → Test → Prod. Wired to the patterns in the CI/CD docs.',
-    href: '/docs/cicd',
+    href: '/packs/cicd-automation',
+    cta: 'View pack →',
   },
   {
     icon: Boxes,
@@ -86,7 +87,13 @@ export default function PacksPage() {
               <span className="inline-flex size-10 items-center justify-center rounded-lg bg-fd-primary/10 text-fd-primary ring-1 ring-inset ring-fd-primary/20">
                 <pack.icon className="size-5" />
               </span>
-              <span className="rounded-full border border-fd-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-fd-muted-foreground">
+              <span
+                className={
+                  pack.status === 'Available'
+                    ? 'rounded-full border border-fd-primary/30 bg-fd-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-fd-primary'
+                    : 'rounded-full border border-fd-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-fd-muted-foreground'
+                }
+              >
                 {pack.status}
               </span>
             </div>
@@ -96,7 +103,7 @@ export default function PacksPage() {
               href={pack.href}
               className="mt-auto pt-2 text-sm font-medium text-fd-primary hover:underline"
             >
-              Related docs →
+              {pack.cta ?? 'Related docs →'}
             </Link>
           </div>
         ))}

@@ -1,0 +1,81 @@
+# Fabric CI/CD Automation Pack — deploy
+# On merge to main: sync the dev workspace from Git, deploy dev -> test,
+# smoke-test test, then deploy test -> prod behind a manual approval gate
+# (the `prod` GitHub Environment's required reviewers).
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false # never cancel a half-finished deploy
+
+env:
+  FAB_VERSION: "1.0.0" # EDIT: match pr-validate.yml
+  PIPELINE_NAME: "Analytics Pipeline" # EDIT
+  DEV_WORKSPACE: "Analytics - Dev" # EDIT
+  TEST_WORKSPACE: "Analytics - Test" # EDIT
+  SMOKE_ITEM: "Smoke.Notebook" # EDIT: an item that exercises the critical path
+
+jobs:
+  deploy-test:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "ms-fabric-cli==${FAB_VERSION}"
+
+      - name: Login
+        env:
+          FABRIC_CLIENT_ID: ${{ secrets.FABRIC_CLIENT_ID }}
+          FABRIC_CLIENT_SECRET: ${{ secrets.FABRIC_CLIENT_SECRET }}
+          FABRIC_TENANT_ID: ${{ secrets.FABRIC_TENANT_ID }}
+        run: |
+          fab auth login \
+            -u "$FABRIC_CLIENT_ID" \
+            -p "$FABRIC_CLIENT_SECRET" \
+            --tenant "$FABRIC_TENANT_ID"
+
+      - name: Sync dev workspace from this commit
+        run: fab git update "$DEV_WORKSPACE" --remote-commit-hash "$GITHUB_SHA" --wait
+
+      - name: Deploy Development -> Test
+        run: bash scripts/deploy-stage.sh "$PIPELINE_NAME" Development Test
+
+      - name: Smoke test (Test)
+        run: bash scripts/smoke-test.sh "$TEST_WORKSPACE" "$SMOKE_ITEM"
+
+  deploy-prod:
+    needs: deploy-test
+    runs-on: ubuntu-latest
+    environment: prod # required reviewers gate this job
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "ms-fabric-cli==${FAB_VERSION}"
+
+      - name: Login
+        env:
+          FABRIC_CLIENT_ID: ${{ secrets.FABRIC_CLIENT_ID }}
+          FABRIC_CLIENT_SECRET: ${{ secrets.FABRIC_CLIENT_SECRET }}
+          FABRIC_TENANT_ID: ${{ secrets.FABRIC_TENANT_ID }}
+        run: |
+          fab auth login \
+            -u "$FABRIC_CLIENT_ID" \
+            -p "$FABRIC_CLIENT_SECRET" \
+            --tenant "$FABRIC_TENANT_ID"
+
+      - name: Deploy Test -> Production
+        run: bash scripts/deploy-stage.sh "$PIPELINE_NAME" Test Production
+
+      - name: Tag the release
+        run: |
+          git tag "release-$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}"
+          git push --tags

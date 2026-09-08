@@ -1,0 +1,41 @@
+# Fabric CI/CD Automation Pack — deployment parameters
+# Applied by `fab` during a pipeline deploy to rebind stage-specific values.
+# Covers what variable libraries don't: semantic-model connections, report data
+# sources, notebook default-lakehouse bindings.
+#
+# Docs: https://fabdocs.dev/docs/cicd/deployment-pipelines
+#       https://fabdocs.dev/docs/cicd/variable-libraries
+
+find_replace:
+  # Rebind a lakehouse GUID referenced inside item definitions.
+  - find_value: "00000000-0000-0000-0000-DEVLAKEHOUSE"
+    replace_value:
+      Test: "00000000-0000-0000-0000-TESTLAKEHOUSE"
+      Production: "00000000-0000-0000-0000-PRODLAKEHOUSE"
+    item_type: ["Notebook", "DataPipeline"]
+
+  # Swap an environment name per stage.
+  - find_value: "Analytics-Env-Dev"
+    replace_value:
+      Test: "Analytics-Env-Test"
+      Production: "Analytics-Env-Prod"
+    item_type: ["Notebook"]
+
+spark_pool:
+  # Point notebooks / SJDs at the right pool per stage.
+  - instance_pool_name: "dev-pool"
+    replace_value:
+      Test:
+        type: "Workspace"
+        name: "test-pool"
+      Production:
+        type: "Workspace"
+        name: "prod-pool"
+
+# Semantic model / report data-source rebinding is set as *deployment rules*
+# on the target stage in the pipeline UI or via the API — parameter.yml does
+# not cover those. Keep a note of them here for the team:
+#
+#   Analytics.SemanticModel
+#     Test        -> SQL endpoint of TEST warehouse
+#     Production   -> SQL endpoint of PROD warehouse
