@@ -12,6 +12,10 @@ const META = {
     name: 'Fabric CI/CD Automation Pack',
     zipName: 'fabric-cicd-automation-pack.zip',
   },
+  'pyspark-templates': {
+    name: 'Fabric PySpark & Notebook Templates',
+    zipName: 'fabric-pyspark-templates.zip',
+  },
 };
 
 async function walk(dir) {

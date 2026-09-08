@@ -1,0 +1,52 @@
+{
+  "$comment": "Control table for the PySpark Templates pack. A pipeline ForEach can iterate `loads` and `maintenance`, passing each entry to the matching notebook as parameters.",
+  "loads": [
+    {
+      "notebook": "incremental_load",
+      "source_table": "bronze.orders",
+      "target_table": "silver.orders",
+      "business_key": "order_id",
+      "watermark_column": "updated_at",
+      "row_floor": 1
+    },
+    {
+      "notebook": "scd2_merge",
+      "source_table": "bronze.customer",
+      "target_table": "gold.dim_customer",
+      "business_key": "customer_id",
+      "order_column": "updated_at",
+      "tracked_columns": ["name", "segment", "country", "credit_limit"]
+    }
+  ],
+  "cleansing": [
+    {
+      "source_table": "bronze.orders",
+      "target_table": "silver.orders_clean",
+      "quarantine_table": "silver.orders_quarantine",
+      "dedupe_keys": ["order_id"],
+      "dedupe_order_by": "updated_at",
+      "casts": { "amount": "decimal(18,2)", "order_date": "date", "quantity": "int" },
+      "not_null_defaults": { "status": "UNKNOWN", "quantity": 0 },
+      "rules": {
+        "amount_non_negative": "amount >= 0",
+        "has_customer": "customer_id is not null"
+      }
+    }
+  ],
+  "maintenance": [
+    {
+      "name": "silver.orders",
+      "zorder_by": ["customer_id", "order_date"],
+      "vorder": true,
+      "target_file_mb": 128,
+      "vacuum_retain_hours": 168
+    },
+    {
+      "name": "bronze.events",
+      "zorder_by": [],
+      "vorder": false,
+      "target_file_mb": 256,
+      "vacuum_retain_hours": 72
+    }
+  ]
+}

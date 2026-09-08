@@ -28,9 +28,10 @@ const PACKS = [
   {
     icon: Boxes,
     title: 'PySpark & Notebook Templates',
-    status: 'Planned',
-    body: 'Modular, tested notebooks: idempotent incremental loads, a configurable data-cleansing framework, SCD handling, and a Delta maintenance job (OPTIMIZE / VACUUM / V-Order) you schedule per table.',
-    href: '/docs/data-engineering/pyspark-patterns',
+    status: 'Available',
+    body: 'Modular, tested notebooks: idempotent incremental loads, a configurable data-cleansing framework, SCD Type 2, and a Delta maintenance job (OPTIMIZE / VACUUM / V-Order) you schedule per table.',
+    href: '/packs/pyspark-templates',
+    cta: 'View pack →',
   },
   {
     icon: MapIcon,
