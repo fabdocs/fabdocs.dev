@@ -1,0 +1,77 @@
+---
+title: "Five levers to cut Capacity Unit cost in Microsoft Fabric"
+description: "Before you buy a bigger F SKU, pull these five levers — the Native Execution Engine, resource profiles, V-Order, small-file compaction, and right-sizing. Most teams find 30–50% without spending a dollar."
+date: "2026-09-09"
+tags: ["capacity", "cost", "spark", "delta"]
+---
+
+A Fabric capacity is a fixed pool of Capacity Units that *every* workload draws
+from — Spark, Warehouse, pipelines, Direct Lake. When it throttles, the reflex
+is to buy the next F SKU up. That doubles the bill. Pull these five levers
+first; the [CU cost calculator](/docs/tools/cu-cost-calculator) will tell you
+whether you still need the upgrade afterward.
+
+## 1. Turn on the Native Execution Engine
+
+The [Native Execution Engine](/docs/data-engineering/native-execution-engine)
+runs Spark scans, filters, joins, and aggregations as vectorised C++ instead of
+JVM code. On scan- and aggregation-heavy jobs it's routinely **2–4× faster**,
+and CU consumption drops close to linearly with the runtime.
+
+Enable it at the **Environment** level so every notebook inherits it, then run
+`explain("formatted")` on your five most expensive queries and confirm the big
+scan/join nodes show as `Velox` / `Native`. The most common thing that drags a
+query back onto the JVM is a Python UDF in the hot path — rewrite those as
+native SQL expressions.
+
+## 2. Match a resource profile to the workload
+
+A [resource profile](/docs/data-engineering/resource-profiles) flips ~20 Spark
+settings at once for a workload shape. A silver/gold build that's mostly a big
+join wants `readHeavyForSpark`; a streaming sink wants `writeHeavy`; a table
+feeding Direct Lake wants `readHeavyForPBI`. Setting the right one is often a
+larger win than hand-tuning `spark.sql.shuffle.partitions`, and it removes the
+config drift that hand-tuning creates.
+
+## 3. Use V-Order where it's read, not where it's written
+
+[V-Order](/docs/onelake/v-order) costs 10–25% extra CU on the writing job and
+saves 15–50% on every Direct Lake and SQL-endpoint read of that data. The
+break-even is read frequency:
+
+- Tables behind a semantic model or queried all day by the warehouse → **on**.
+- Bronze, staging, and Spark-only intermediate tables → **off**.
+
+New workspaces ship with the session default *off* for generic Spark — check
+`spark.sql.parquet.vorder.default` before you assume.
+
+## 4. Kill the small-file problem
+
+Streaming writes and frequent `MERGE` leave hundreds of 1–10 MB Parquet files.
+Query planning then spends more time opening files than reading them — and that
+tax lands on Spark, the SQL endpoint, and Direct Lake reframing all at once.
+Nightly [bin-compaction](/docs/onelake/delta-optimization) toward a 128–256 MB
+target file size pays for its own CU within a week on any table queried more
+than a few times a day. Pair it with `VACUUM` so the orphaned files stop
+costing storage.
+
+## 5. Right-size the pool, then the capacity
+
+Sizing a pool by trial and error burns time and CU. The
+[Spark pool sizing estimator](/docs/tools/spark-pool-sizer) takes data volume,
+a target run time, and workload shape and gives you a starting node count — plus
+a memory sanity check so shuffle-heavy jobs don't silently spill to disk (which
+*multiplies* runtime).
+
+Set the pool as an **autoscale range** with that as the ceiling, so a small run
+doesn't hold the whole pool. Only after the four levers above, and a right-sized
+pool, should you compare peak CU against the
+[SKU reference](/docs/tools/capacity-sku-reference) and decide on the capacity.
+
+## The order matters
+
+Do them in this order. Enabling NEE and fixing small files changes the numbers
+enough that a pool or SKU you sized last month is probably now too big. Measure
+CU per run before and after each change and keep the figure in the job's README
+— that's the evidence you'll want when someone asks why the capacity bill went
+*down*.

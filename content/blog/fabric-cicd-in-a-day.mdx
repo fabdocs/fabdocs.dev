@@ -1,0 +1,66 @@
+---
+title: "Set up Microsoft Fabric CI/CD in a day"
+description: "A concrete path from clicking 'publish' in a prod workspace to Git-backed, pipeline-promoted deployments — Git integration, deployment pipelines, variable libraries, and GitHub Actions, in the order that actually works."
+date: "2026-09-09"
+tags: ["cicd", "git", "deployment", "governance"]
+---
+
+The goal is simple to state: **no human clicks _publish_ in a production
+workspace.** Changes land in Git, CI validates them, and a pipeline promotes
+them dev → test → prod with stage-specific values injected automatically. Here's
+the order to build it so each step works before you add the next.
+
+## Morning: Git-connect one workspace
+
+Connect your **dev** workspace to a branch of an Azure DevOps or GitHub repo.
+That's the only workspace that writes to `main`. Test and prod are **never**
+Git-connected — they receive changes only through the deployment pipeline.
+
+Read the [Git integration](/docs/cicd/git-integration) notes on what round-trips
+cleanly (notebooks, pipelines, semantic models, environments — full; lakehouse —
+*metadata only*, table data never goes in Git) and adopt the branching model:
+long-lived branch per permanent workspace, short-lived feature branches in
+isolated workspaces, PR back to `main`.
+
+By lunch you should be able to make a change in a feature workspace, PR it, and
+see the dev workspace sync on merge.
+
+## Midday: build the deployment pipeline
+
+Create a three-stage [deployment pipeline](/docs/cicd/deployment-pipelines) —
+Development, Test, Production — each bound to its workspace. "Deploy" copies item
+definitions from one stage to the next, matching by name.
+
+Set **deployment rules** on the target stages for the bindings a variable
+library can't cover: semantic-model connections, report data sources. Everything
+a notebook or pipeline reads — paths, ids, emails, capacities — goes in a
+[variable library](/docs/cicd/variable-libraries) instead, with one value set
+per stage. Add a check that every variable is defined in *every* value set; a
+missing key silently falls back to Default.
+
+## Afternoon: automate it with GitHub Actions
+
+Two workflows ([full templates](/docs/cicd/github-actions)):
+
+- **`pr-validate.yml`** — static checks on every PR: no hard-coded workspace
+  ids, `parameter.yml` is valid, naming conventions hold.
+- **`deploy.yml`** — on merge to `main`: `fab git update` the dev workspace to
+  the commit, deploy dev → test, run a smoke notebook, then deploy test → prod
+  **behind a required-reviewer gate** (a protected GitHub Environment).
+
+You'll need a service principal added as Admin on all three workspaces, SPN
+access enabled in the Fabric admin portal, and three repo secrets. Pin the
+`ms-fabric-cli` version — its command names still move between releases.
+
+## By end of day
+
+A merge to `main` updates dev, promotes to test, smoke-tests, and waits for a
+human to approve prod. Tag `main` on every prod release so you can reconstruct
+any deployed state.
+
+## Skip the boilerplate
+
+The [CI/CD Automation Pack](/packs/cicd-automation) is exactly these two
+workflows plus `checks.sh`, `deploy-stage.sh`, `smoke-test.sh`, a `parameter.yml`
+template, and a variable-library example — copy three folders, fill in the
+`EDIT:` markers, done. It's included with [Pro](/pricing).

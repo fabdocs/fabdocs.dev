@@ -35,14 +35,14 @@ export function baseOptions(): BaseLayoutProps {
         active: 'nested-url',
       },
       {
-        text: 'Playbooks',
-        url: '/docs/playbooks',
-        active: 'nested-url',
-      },
-      {
         text: 'Kits',
         url: '/packs',
         active: 'url',
+      },
+      {
+        text: 'Blog',
+        url: '/blog',
+        active: 'nested-url',
       },
       {
         text: 'Pricing',

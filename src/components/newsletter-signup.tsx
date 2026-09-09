@@ -12,7 +12,7 @@ export function NewsletterSignup({
   variant = 'card',
   className,
 }: {
-  source: 'footer' | 'home' | 'packs' | 'docs';
+  source: 'footer' | 'home' | 'packs' | 'docs' | 'blog';
   interest?: string;
   variant?: 'card' | 'inline';
   className?: string;

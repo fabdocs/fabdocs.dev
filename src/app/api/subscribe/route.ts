@@ -6,7 +6,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 // (added when a sending provider is wired in).
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const VALID_SOURCES = new Set(['footer', 'home', 'packs', 'docs']);
+const VALID_SOURCES = new Set(['footer', 'home', 'packs', 'docs', 'blog']);
 
 export async function POST(req: NextRequest) {
   const { allowed } = await checkRateLimit(req, 'subscribe', 10, undefined, 60 * 60);
