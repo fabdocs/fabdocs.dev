@@ -1,0 +1,33 @@
+{
+  "$comment": [
+    "Migration manifest — one entry per source table. Drives metadata_driven_copy",
+    "and validate_parity. `decision` mirrors your inventory tagging; 'retire'",
+    "rows are skipped. `checksum_columns` should be a few numeric columns that",
+    "would change if data were lost or duplicated.",
+    "Docs: https://fabdocs.dev/docs/playbooks"
+  ],
+  "source": "sqlserver",
+  "tables": [
+    {
+      "source_schema": "sales",
+      "source_table": "orders",
+      "target_table": "orders",
+      "decision": "keep",
+      "watermark_column": "modified_at",
+      "checksum_columns": ["amount", "quantity"]
+    },
+    {
+      "source_schema": "sales",
+      "source_table": "customers",
+      "target_table": "customers",
+      "decision": "keep",
+      "watermark_column": null,
+      "checksum_columns": ["credit_limit"]
+    },
+    {
+      "source_schema": "staging",
+      "source_table": "tmp_load_2019",
+      "decision": "retire"
+    }
+  ]
+}

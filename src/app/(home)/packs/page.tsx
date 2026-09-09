@@ -36,9 +36,10 @@ const PACKS = [
   {
     icon: MapIcon,
     title: 'Migration Toolkits',
-    status: 'Planned',
-    body: 'Conversion kits for SQL Server / SSIS, Snowflake, and Databricks → Fabric: inventory scripts, DDL/type translators, a metadata-driven copy framework, and a parallel-run validation harness (row counts + checksums).',
-    href: '/docs/playbooks',
+    status: 'Available',
+    body: 'Conversion kits for SQL Server / SSIS, Snowflake, and Databricks → Fabric: inventory scripts, a DDL/type translator, a manifest-driven copy notebook, and a parity-validation harness.',
+    href: '/packs/migration-toolkits',
+    cta: 'View pack →',
   },
   {
     icon: ShieldCheck,

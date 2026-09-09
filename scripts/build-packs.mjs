@@ -20,6 +20,10 @@ const META = {
     name: 'Fabric Governance & Security Framework',
     zipName: 'fabric-governance-framework.zip',
   },
+  'migration-toolkits': {
+    name: 'Fabric Migration Toolkits',
+    zipName: 'fabric-migration-toolkits.zip',
+  },
 };
 
 async function walk(dir) {
