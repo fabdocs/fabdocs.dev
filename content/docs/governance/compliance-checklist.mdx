@@ -1,0 +1,58 @@
+---
+title: Compliance review checklist
+description: A practical checklist for a Microsoft Fabric security and compliance review — identity, data protection, audit, and change control, with who owns each control and how often it repeats.
+---
+
+Use this before an internal audit, a SOC 2 / ISO evidence request, or a
+regulator conversation. Each item names **what proves it**, the **owner** who
+signs off, and the **cadence** it repeats on.
+
+<Callout type="info">
+The [Governance & Security Framework](/packs/governance-framework) pack turns
+most of these into runnable artifacts — the OneLake security model as a
+PR-reviewed file, a continuous audit-log export, and an access-review worksheet.
+</Callout>
+
+## Identity & access
+
+| Control | Proof | Owner | Cadence |
+| --- | --- | --- | --- |
+| OneLake security roles are modelled on **Entra groups, not individuals** | The role model file + apply job history | Data owner | On change |
+| Workspace **Admin / Member** membership is minimal and named (those roles bypass OneLake security) | A current list with a reason per member | Workspace admin | Quarterly |
+| Trusted storage access uses **workspace identity**, not stored keys | Role assignments + storage network rules | Platform | On new storage |
+| Service principals: least privilege, secrets in Key Vault, rotation defined | SPN inventory + secret policy | Platform | Per policy |
+| Direct Lake models use **SSO to OneLake** (not a fixed identity) for regulated data | Model settings screenshot / export | BI lead | Quarterly |
+
+## Data protection
+
+| Control | Proof | Owner | Cadence |
+| --- | --- | --- | --- |
+| Sensitive tables and columns are **inventoried with a classification** | Classification map | Data owner | Quarterly |
+| RLS / CLS **verified with a real member account** across Spark, SQL endpoint, and a Direct Lake report | Test evidence per role | Data owner | On change + quarterly |
+| **Retention** set on tables to match classification (`delta.deletedFileRetentionDuration`) | Table properties export | Data eng | On new table |
+| **Default-deny** confirmed — a principal with no role sees nothing | Negative test evidence | Data owner | Quarterly |
+
+## Audit & monitoring
+
+| Control | Proof | Owner | Cadence |
+| --- | --- | --- | --- |
+| Unified audit log **exported continuously** to durable storage / SIEM (portal keeps only ~180 days) | Export job runs + row counts | Security | Daily job, monthly check |
+| **Workspace Monitoring** enabled on regulated workspaces with an explicit Eventhouse retention policy | Monitoring config | Platform | On new workspace |
+| **Alerts** on: permission changes to regulated workspaces, workspace identity changes, OneLake role edits | SIEM rules | Security | On setup |
+| **Quarterly access review** — granted vs. actually used, exceptions signed off | Review worksheet with sign-off | Data owner | Quarterly |
+
+## Change control
+
+| Control | Proof | Owner | Cadence |
+| --- | --- | --- | --- |
+| Security model changes go through **pull request** (the spec is in Git) | PR history | Data owner | Per change |
+| Tenant settings **snapshotted and diffed** | Timestamped JSON snapshots in Git | Fabric admin | Weekly |
+| Prod deploys are **gated** — no manual publish in prod | Deployment pipeline / CI config | Platform | Per deploy |
+
+## How to read "who can read this table"
+
+The effective answer is the **intersection of every layer**: tenant settings →
+capacity → workspace role → item permission → OneLake security. Document the
+whole chain per regulated dataset — see
+[OneLake security](/docs/governance/onelake-security) for the layer model, and
+the pack's `CONTROL-MATRIX.md` template for a fill-in-the-blanks version.

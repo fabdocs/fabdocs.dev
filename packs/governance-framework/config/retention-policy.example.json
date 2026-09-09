@@ -1,0 +1,20 @@
+{
+  "$comment": [
+    "Retention targets per data classification. Consumed by the Delta",
+    "maintenance job (see the PySpark Templates pack) and by audit_log_export.",
+    "Set deletedFileRetentionDuration on tables to match; keep audit data at or",
+    "above your compliance floor."
+  ],
+  "classifications": {
+    "public": { "delta_retain_hours": 72, "audit_retain_days": 400 },
+    "internal": { "delta_retain_hours": 168, "audit_retain_days": 400 },
+    "confidential": { "delta_retain_hours": 168, "audit_retain_days": 730 },
+    "regulated": { "delta_retain_hours": 2555, "audit_retain_days": 2555 }
+  },
+  "tables": {
+    "sales.orders": "confidential",
+    "sales.products": "internal",
+    "finance.gl": "regulated",
+    "bronze.events": "internal"
+  }
+}

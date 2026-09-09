@@ -43,9 +43,10 @@ const PACKS = [
   {
     icon: ShieldCheck,
     title: 'Governance & Security Framework',
-    status: 'Planned',
-    body: 'Ready-to-implement OneLake security role models, workspace-identity setup scripts, and an audit-log export pipeline for SIEM — the patterns from the Governance docs as runnable artifacts.',
-    href: '/docs/governance',
+    status: 'Available',
+    body: 'OneLake security role models in Git, applied idempotently; a continuous audit-log export for SIEM; workspace-identity setup; and a quarterly access-review worksheet.',
+    href: '/packs/governance-framework',
+    cta: 'View pack →',
   },
   {
     icon: Activity,

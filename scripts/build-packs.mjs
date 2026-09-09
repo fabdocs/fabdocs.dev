@@ -16,6 +16,10 @@ const META = {
     name: 'Fabric PySpark & Notebook Templates',
     zipName: 'fabric-pyspark-templates.zip',
   },
+  'governance-framework': {
+    name: 'Fabric Governance & Security Framework',
+    zipName: 'fabric-governance-framework.zip',
+  },
 };
 
 async function walk(dir) {

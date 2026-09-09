@@ -1,0 +1,56 @@
+{
+  "$comment": [
+    "OneLake security role model for one lakehouse. Reviewed in PRs, applied by",
+    "notebooks/provision_onelake_security.py. Members are ALWAYS Entra group",
+    "object ids, never user emails. A table not listed in a role is denied.",
+    "Docs: https://fabdocs.dev/docs/governance/onelake-security"
+  ],
+  "workspaceId": "EDIT-workspace-guid",
+  "lakehouseId": "EDIT-lakehouse-guid",
+  "defaultAction": "deny",
+  "roles": [
+    {
+      "name": "analyst_emea",
+      "description": "EMEA analysts — regional sales, no PII",
+      "members": ["EDIT-entra-group-objectid-FIN-Analysts-EMEA"],
+      "tables": [
+        {
+          "table": "sales.orders",
+          "access": "read",
+          "rowFilter": "region = 'EMEA'",
+          "denyColumns": ["customer_tax_id", "customer_email"]
+        },
+        { "table": "sales.products", "access": "read" }
+      ]
+    },
+    {
+      "name": "analyst_amer",
+      "description": "AMER analysts — regional sales, no PII",
+      "members": ["EDIT-entra-group-objectid-FIN-Analysts-AMER"],
+      "tables": [
+        {
+          "table": "sales.orders",
+          "access": "read",
+          "rowFilter": "region = 'AMER'",
+          "denyColumns": ["customer_tax_id", "customer_email"]
+        },
+        { "table": "sales.products", "access": "read" }
+      ]
+    },
+    {
+      "name": "pii_cleared",
+      "description": "Cleared for full customer detail — audited quarterly",
+      "members": ["EDIT-entra-group-objectid-PII-Cleared"],
+      "tables": [{ "table": "sales.orders", "access": "read" }]
+    },
+    {
+      "name": "finance_close",
+      "description": "Month-end close — full sales + finance",
+      "members": ["EDIT-entra-group-objectid-Finance-Close"],
+      "tables": [
+        { "table": "sales.orders", "access": "read" },
+        { "table": "finance.gl", "access": "read" }
+      ]
+    }
+  ]
+}
