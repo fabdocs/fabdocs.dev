@@ -7,20 +7,7 @@ export async function POST(request: NextRequest) {
   const priceId = process.env.STRIPE_PRICE_ID;
 
   if (!stripe || !priceId) {
-    // TEMPORARY diagnostic — booleans only, never the secret values. Remove
-    // once Stripe env vars are confirmed reaching the Worker.
-    return NextResponse.json(
-      {
-        error: 'Upgrades are not available yet.',
-        debug: {
-          hasSecretKey: Boolean(process.env.STRIPE_SECRET_KEY),
-          secretKeyLen: (process.env.STRIPE_SECRET_KEY ?? '').length,
-          hasPriceId: Boolean(process.env.STRIPE_PRICE_ID),
-          priceIdLen: (process.env.STRIPE_PRICE_ID ?? '').length,
-        },
-      },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: 'Upgrades are not available yet.' }, { status: 503 });
   }
 
   // Origin header, not the hardcoded siteUrl — otherwise local/preview testing
