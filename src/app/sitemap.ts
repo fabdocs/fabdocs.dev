@@ -19,6 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: abs('/packs/pyspark-templates'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: abs('/packs/governance-framework'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: abs('/packs/migration-toolkits'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
+    { url: abs('/packs/workspace-monitoring'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
   ];
 
   const docsRoutes: MetadataRoute.Sitemap = source.getPages().map((page) => ({

@@ -1,0 +1,72 @@
+// Starter DAX measures for the Workspace Monitoring report.
+// Build a Direct Lake semantic model over the `monitoring` lakehouse (three
+// tables: capacity_metrics, job_runs, refresh_history), then add these.
+// See report/README.md for the page layout.
+
+// ---- Capacity overview -----------------------------------------------
+Total CU Seconds (24h) =
+CALCULATE(
+    SUM ( capacity_metrics[cu_seconds] ),
+    capacity_metrics[event_time] >= NOW () - 1
+)
+
+Avg CU Utilization % =
+DIVIDE ( [Total CU Seconds (24h)] / 86400, SELECTEDVALUE ( capacities[cu_limit] ) ) * 100
+
+CU Trend 7d =
+CALCULATE (
+    SUM ( capacity_metrics[cu_seconds] ),
+    DATESINPERIOD ( capacity_metrics[event_time], MAX ( capacity_metrics[event_time] ), -7, DAY )
+)
+
+Top Item by CU (24h) =
+CALCULATE (
+    SELECTEDVALUE ( capacity_metrics[item] ),
+    TOPN ( 1, VALUES ( capacity_metrics[item] ), [Total CU Seconds (24h)], DESC )
+)
+
+// ---- Job health --------------------------------------------------------
+Job Success Rate % =
+DIVIDE (
+    CALCULATE ( COUNTROWS ( job_runs ), job_runs[status] = "Succeeded" ),
+    COUNTROWS ( job_runs )
+) * 100
+
+Failed Jobs (7d) =
+CALCULATE (
+    COUNTROWS ( job_runs ),
+    job_runs[status] = "Failed",
+    DATESINPERIOD ( job_runs[started_at], MAX ( job_runs[started_at] ), -7, DAY )
+)
+
+Avg Job Duration (min) =
+AVERAGE ( job_runs[duration_s] ) / 60
+
+Abandoned Items =
+CALCULATE (
+    DISTINCTCOUNT ( job_runs[item] ),
+    FILTER (
+        VALUES ( job_runs[item] ),
+        CALCULATE ( MAX ( job_runs[started_at] ), job_runs[status] = "Succeeded" ) < NOW () - 30
+            || ISBLANK ( CALCULATE ( MAX ( job_runs[started_at] ), job_runs[status] = "Succeeded" ) )
+    )
+)
+
+// ---- Refresh health ------------------------------------------------------
+Refresh Success Rate % =
+DIVIDE (
+    CALCULATE ( COUNTROWS ( refresh_history ), refresh_history[status] = "Completed" ),
+    COUNTROWS ( refresh_history )
+) * 100
+
+Refresh P90 Duration (min) =
+PERCENTILEX.INC ( refresh_history, refresh_history[duration_s], 0.9 ) / 60
+
+Models With Failing Streak =
+CALCULATE (
+    DISTINCTCOUNT ( refresh_history[model] ),
+    FILTER (
+        VALUES ( refresh_history[model] ),
+        [Refresh Success Rate %] = 0
+    )
+)

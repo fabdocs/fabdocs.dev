@@ -12,7 +12,7 @@ import { NewsletterSignup } from '@/components/newsletter-signup';
 export const metadata: Metadata = {
   title: 'Starter kits & frameworks',
   description:
-    'Production-ready PySpark templates, CI/CD automation packs, migration toolkits, and governance frameworks for Microsoft Fabric — in development.',
+    'Five production-ready packs for Microsoft Fabric: CI/CD automation, PySpark templates, governance & security, migration toolkits, and workspace monitoring — included with Pro.',
   alternates: { canonical: '/packs' },
 };
 
@@ -52,9 +52,10 @@ const PACKS = [
   {
     icon: Activity,
     title: 'Workspace Monitoring Framework',
-    status: 'Planned',
-    body: 'A monitoring lakehouse + notebooks that track CU consumption by item, job failures, refresh health, and abandoned pipelines — with a starter Power BI report.',
-    href: '/docs/tools/capacity-sku-reference',
+    status: 'Available',
+    body: 'A monitoring lakehouse + notebooks that track CU consumption by item, job failures, refresh health, and abandoned pipelines — with a starter Power BI report and Teams alerting.',
+    href: '/packs/workspace-monitoring',
+    cta: 'View pack →',
   },
 ];
 
@@ -64,7 +65,7 @@ export default function PacksPage() {
       <div className="max-w-2xl">
         <span className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card px-3 py-1 text-xs font-medium text-fd-muted-foreground">
           <span className="size-1.5 rounded-full bg-fd-primary" />
-          Revenue tier — in development
+          5 packs · all included with Pro
         </span>
         <h1 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
           Starter kits &amp; frameworks
@@ -72,11 +73,11 @@ export default function PacksPage() {
         <p className="mt-4 text-fd-muted-foreground">
           The architectural guides stay free. These are the production-ready
           components that save the 20 hours of trial and error: tested scripts,
-          templates, and automation — not theory. Planned to ship with{' '}
+          templates, and automation — not theory. All five are included with{' '}
           <Link href="/pricing" className="text-fd-primary underline-offset-2 hover:underline">
             Pro
           </Link>
-          , with standalone purchase for individual packs.
+          .
         </p>
       </div>
 
@@ -115,8 +116,8 @@ export default function PacksPage() {
       <div className="mt-12">
         <NewsletterSignup source="packs" />
         <p className="mt-3 text-xs text-fd-muted-foreground">
-          Subscribers hear first when a pack ships, and help decide the order —
-          reply to any briefing with what you&rsquo;d buy.
+          Subscribers hear first when a pack is updated for a new Fabric
+          Runtime — reply to any briefing with what you&rsquo;d like to see next.
         </p>
       </div>
     </main>

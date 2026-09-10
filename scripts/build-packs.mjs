@@ -24,6 +24,10 @@ const META = {
     name: 'Fabric Migration Toolkits',
     zipName: 'fabric-migration-toolkits.zip',
   },
+  'workspace-monitoring': {
+    name: 'Fabric Workspace Monitoring Framework',
+    zipName: 'fabric-workspace-monitoring.zip',
+  },
 };
 
 async function walk(dir) {

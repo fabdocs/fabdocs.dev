@@ -1,0 +1,20 @@
+{
+  "$comment": "Scope + alert thresholds for the Workspace Monitoring Framework.",
+  "capacities": [
+    { "id": "EDIT-capacity-guid", "name": "Prod-F64", "cuLimit": 64 }
+  ],
+  "workspaces": ["EDIT-workspace-guid-1", "EDIT-workspace-guid-2"],
+  "lookbackDays": 90,
+  "thresholds": {
+    "avgCuUtilizationPct": 80,
+    "consecutiveJobFailures": 3,
+    "abandonedItemDays": 30,
+    "refreshFailureStreak": 2,
+    "refreshDurationP90Minutes": 30
+  },
+  "alerting": {
+    "teamsWebhookUrl": "https://EDIT.webhook.office.com/...",
+    "keyVaultUrl": "https://EDIT.vault.azure.net/",
+    "teamsWebhookSecretName": "monitoring-teams-webhook"
+  }
+}
