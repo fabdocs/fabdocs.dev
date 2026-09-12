@@ -5,6 +5,7 @@
   "root": true,
   "pages": [
     "index",
+    "from-synapse",
     "from-databricks",
     "from-snowflake",
     "from-ssis"

@@ -1,6 +1,6 @@
 ---
 title: Migration Playbooks
-description: Opinionated, step-by-step conversions from Databricks, Snowflake, and SSIS into Microsoft Fabric.
+description: Opinionated, step-by-step conversions from Azure Synapse, Databricks, Snowflake, and SSIS into Microsoft Fabric.
 icon: Map
 ---
 
@@ -9,6 +9,7 @@ Each playbook follows the same arc: **inventory → map → move a slice → val
 [OneLake & Delta Lake](/docs/onelake) and [CI/CD & Git](/docs/cicd).
 
 <Cards>
+  <Card title="From Azure Synapse Analytics" href="/docs/playbooks/from-synapse" description="Dedicated/serverless SQL pools, Spark pools, pipelines, and Synapse Link into Fabric." />
   <Card title="From Databricks" href="/docs/playbooks/from-databricks" description="Notebooks, jobs, Unity Catalog, and DLT into Fabric lakehouses + pipelines." />
   <Card title="From Snowflake" href="/docs/playbooks/from-snowflake" description="Warehouses, roles, tasks, and SnowSQL into Fabric Warehouse + OneLake." />
   <Card title="From SSIS" href="/docs/playbooks/from-ssis" description="Control flow, data flow, and SSISDB into Fabric Data Pipelines + Dataflows." />

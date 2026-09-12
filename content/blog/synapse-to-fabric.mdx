@@ -1,0 +1,79 @@
+---
+title: "Migrating from Azure Synapse Analytics to Fabric: what actually changes"
+description: "Synapse and Fabric share an engine — pipelines are still Data Factory underneath. Here's the part that's near-copy-paste, the part with no direct equivalent, and the order that avoids a big-bang cutover."
+date: "2026-09-12"
+tags: ["migration", "synapse", "pipelines", "governance"]
+---
+
+Microsoft has been explicit that Fabric is where Synapse is headed, which makes
+this the migration with the smallest conceptual gap of the common ones — and
+also the one where it's easiest to assume more carries over automatically than
+actually does.
+
+## The genuinely easy part: pipelines
+
+Synapse Pipelines are Azure Data Factory. Fabric Data Pipelines are Azure Data
+Factory again. Most activities — Copy, Lookup, ForEach, Execute Pipeline,
+web/webhook calls — translate directly from the exported JSON. The work is
+almost entirely in **re-pointing**: linked services become Connections, and
+anything that authenticated with a stored key should move to
+[workspace identity](/docs/governance/workspace-identity) while you're in
+there rather than re-typing the same secret into a new box.
+
+## The part with no equivalent: SQL pool distribution
+
+A dedicated SQL pool's `HASH`, `ROUND_ROBIN`, and `REPLICATE` distribution
+options don't exist in a Fabric Warehouse or Lakehouse table — there is no
+"how is this table physically distributed across compute nodes" concept to
+configure. That's not a gap to work around; it's a different execution model.
+Translate the *intent* instead:
+
+- A hash-distributed fact table → a normal Delta table,
+  [Z-ordered](/docs/onelake/delta-optimization) on the columns you used to hash on.
+- A replicated dimension table → just a small Delta table. Size does the work
+  that `REPLICATE` used to — Spark and the SQL engine both broadcast small
+  tables automatically.
+
+If your dedicated pool leaned heavily on distribution tuning for a handful of
+huge fact tables, budget real time here — this is design work, not a script.
+
+## Synapse Link → Fabric mirroring
+
+If you're using Synapse Link for SQL, Dataverse, or Cosmos DB, this one is
+close to a straight swap.
+[Database mirroring](/docs/onelake/mirroring) is the same idea — a
+continuously-replicated, read-only copy landing as Delta tables — built by the
+same team with the lessons from Synapse Link folded in. Stand up the mirror
+against the same source, validate row counts match, then cut the old link.
+
+## Don't export your RBAC model — rebuild it
+
+Synapse's workspace RBAC and SQL-level roles don't have an import path into
+[OneLake security](/docs/governance/onelake-security). This is inconvenient
+in the moment and a genuine opportunity every other time: access models
+accumulate scope creep for years, and a from-scratch design against your
+*current* actual requirements is usually smaller and clearer than whatever
+you'd export. Use the
+[compliance checklist](/docs/governance/compliance-checklist) as the frame
+while you do it.
+
+## Spark pools: mostly a rename
+
+`mssparkutils` becomes `notebookutils` — check the
+[reference](/docs/data-engineering/notebookutils-reference) for the handful of
+calls that changed shape, not just the name. `%%pyspark` and `%%spark` cell
+magics carry over unchanged. Pool-level Spark config is the one place to stop
+and reconsider rather than copy forward — a
+[resource profile](/docs/data-engineering/resource-profiles) set at the
+Environment level replaces a pile of `%%configure` cells with a tested bundle.
+
+## Suggested order
+
+1. Pipelines first — lowest effort, and proves your Git/CI setup end to end.
+2. Synapse Link sources → mirroring, in parallel.
+3. Spark notebooks — rename, re-test, move config to a resource profile.
+4. Dedicated SQL pool tables last — they're the design work, not the busywork.
+
+Full mapping table and gotchas, including the PolyBase-external-table and
+serverless-SQL-view traps, in the
+[from Azure Synapse Analytics](/docs/playbooks/from-synapse) playbook.

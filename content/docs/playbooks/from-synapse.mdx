@@ -1,0 +1,139 @@
+---
+title: From Azure Synapse Analytics
+description: Dedicated and serverless SQL pools, Spark pools, pipelines, and Synapse Link — mapped onto Fabric, with the parts that are near-copy-paste and the parts that need a rebuild.
+---
+
+Synapse and Fabric share an engine lineage — Synapse Pipelines *are* Azure Data
+Factory, Fabric Data Pipelines are the same engine again — so this migration is
+often the least disruptive of the four. The gap is smaller in scope than
+[Databricks](/docs/playbooks/from-databricks) or
+[Snowflake](/docs/playbooks/from-snowflake), but the SQL pool distribution model
+and PolyBase-style external tables have no direct Fabric equivalent and need a
+real rebuild.
+
+## What maps to what
+
+| Synapse | Fabric | Notes |
+| --- | --- | --- |
+| Dedicated SQL pool | Fabric Warehouse | No hash/round-robin/replicate distribution — Delta handles layout via [Z-order / liquid clustering](/docs/onelake/delta-optimization) instead |
+| Serverless SQL pool (over ADLS) | Lakehouse SQL analytics endpoint | Querying files becomes querying OneLake tables — often a [shortcut](/docs/onelake/shortcuts), not a copy |
+| Spark pool | Fabric Environment + Spark pool | See [Resource profiles](/docs/data-engineering/resource-profiles) for sizing |
+| Synapse Pipelines | Fabric Data Pipelines | Same underlying engine — activities and expressions are largely 1:1 |
+| Linked service | Connection | Recreate per-connection; credentials move to Key Vault or [workspace identity](/docs/governance/workspace-identity) |
+| Self-hosted integration runtime | On-premises data gateway | Needed for the same on-prem sources |
+| Lake database | Lakehouse | Metadata definitions don't carry over automatically — recreate table defs, data can shortcut in |
+| **Synapse Link** (SQL / Dataverse / Cosmos DB) | [Database mirroring](/docs/onelake/mirroring) | Same concept, direct analogue |
+| Workspace RBAC | Workspace roles + [OneLake security](/docs/governance/onelake-security) | Synapse RBAC roles don't map 1:1 — rebuild the model, don't try to copy it |
+| PolyBase external tables | Shortcut, or a Copy activity into a managed table | External table syntax doesn't carry over |
+| Git integration + ARM template deploy | [Git integration](/docs/cicd/git-integration) + [deployment pipelines](/docs/cicd/deployment-pipelines) | Conceptually similar; parameterization mechanism is different (variable libraries, not ARM parameter files) |
+| Synapse monitoring hub | Fabric Monitoring hub / [workspace monitoring](/docs/governance/audit-logs) | |
+
+## Procedure
+
+<Steps>
+
+<Step>
+
+### Inventory both SQL pools and pipelines separately
+
+They migrate at different speeds. Tag every dedicated-pool table and every
+pipeline **keep / retire / rebuild** — Synapse workspaces accumulate abandoned
+pipelines faster than most platforms because cloning a pipeline for a one-off
+run is so easy.
+
+</Step>
+
+<Step>
+
+### Move pipelines first — they're the cheapest win
+
+Export a Synapse pipeline's JSON and diff it against a new Fabric pipeline's
+JSON; most activities (Copy, Lookup, ForEach, Execute Pipeline, web/webhook)
+translate directly. Re-point linked services to new Connections and swap any
+`Set-AzSynapse*` PowerShell in custom activities for `fab`
+([GitHub Actions](/docs/cicd/github-actions)).
+
+</Step>
+
+<Step>
+
+### Replace dedicated-pool distribution with Delta layout
+
+There is no `HASH`/`ROUND_ROBIN`/`REPLICATE` in a Warehouse or Lakehouse table.
+Translate the *intent*: a hash-distributed fact table becomes a normal Delta
+table with [Z-order](/docs/onelake/delta-optimization) on the join keys; a
+replicated dimension becomes a small Delta table (or broadcast join target) —
+size alone gets you the broadcast behavior in Spark.
+
+</Step>
+
+<Step>
+
+### Convert Spark pool notebooks
+
+Swap `mssparkutils` for `notebookutils` (mostly a rename — see the
+[reference](/docs/data-engineering/notebookutils-reference)), and Synapse's
+`%%pyspark`/`%%spark` cell magics carry over as-is. Re-check any Spark config
+set at the pool level; move it to a Fabric
+[resource profile](/docs/data-engineering/resource-profiles) or Environment
+setting instead of per-notebook `%%configure`.
+
+</Step>
+
+<Step>
+
+### Migrate Synapse Link sources via Fabric mirroring
+
+If you used Synapse Link for SQL, Dataverse, or Cosmos DB, this is close to a
+direct swap — set up [database mirroring](/docs/onelake/mirroring) for the same
+source and validate the mirrored tables match before cutting the old link off.
+
+</Step>
+
+<Step>
+
+### Rebuild security from scratch, not from an export
+
+Synapse's workspace-level RBAC and SQL-level roles don't have an export/import
+path into Fabric's model. Design the [OneLake security](/docs/governance/onelake-security)
+role set fresh from your actual access requirements — treat this as a chance to
+fix scope creep, not a lift-and-shift.
+
+</Step>
+
+<Step>
+
+### Validate and cut over
+
+Row counts and checksums per migrated table
+([patterns](/docs/data-engineering/pyspark-patterns)), a parallel run through
+one full reporting cycle, then cut over per workload — pipelines, then SQL
+pools, then Spark jobs — rather than a single big-bang switch.
+
+</Step>
+
+</Steps>
+
+## Gotchas
+
+<Callout type="warn">
+**Serverless SQL pool views over external files** often encode a schema inline
+in the view definition. When the same files move to OneLake, recreate the query
+against the Lakehouse SQL endpoint rather than trying to repoint the old
+`OPENROWSET` — column mapping and type inference behave differently.
+</Callout>
+
+- **Result set caching** on dedicated SQL pools has no Warehouse equivalent —
+  budget for the real compute cost when comparing capacity sizing; check the
+  [SKU reference](/docs/tools/capacity-sku-reference) and the
+  [CU calculator](/docs/tools/cu-cost-calculator).
+- **CETAS** (`CREATE EXTERNAL TABLE AS SELECT`) becomes a normal
+  `CREATE TABLE AS SELECT` into a managed Delta table — simpler, but drop any
+  external-file-format assumptions (Parquet/CSV specifics) from the DDL.
+- **Workspace packages** (custom Spark libraries uploaded to a Synapse
+  workspace) move to Fabric **Environment** libraries — re-upload, don't expect
+  them to appear automatically.
+- **Synapse Studio's Data Flows** (mapping data flows) have no direct Fabric
+  equivalent — rebuild the transformation logic as a notebook
+  ([cleansing framework](/docs/data-engineering/pyspark-patterns)) or a Dataflow
+  Gen2, depending on complexity.
