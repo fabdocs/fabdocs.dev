@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import {
+  Activity,
   ArrowRight,
   Boxes,
   Calculator,
@@ -9,12 +10,15 @@ import {
   GaugeCircle,
   GitBranch,
   Map as MapIcon,
+  MessageCircle,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { appName } from '@/lib/shared';
 import { JsonLd } from '@/components/json-ld';
 import { organizationJsonLd, websiteJsonLd } from '@/lib/seo';
 import { NewsletterSignup } from '@/components/newsletter-signup';
+import { getBlogPosts, blogSlug, formatBlogDate } from '@/lib/blog-source';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
@@ -60,9 +64,17 @@ const sections = [
 ];
 
 const stats = [
-  { value: '30+', label: 'production guides' },
+  { value: '33+', label: 'production guides' },
   { value: '6', label: 'engineering domains' },
   { value: 'CU', label: 'impact stated on every page' },
+];
+
+const packs = [
+  { icon: GitBranch, title: 'CI/CD Automation', href: '/packs/cicd-automation' },
+  { icon: Boxes, title: 'PySpark & Notebook Templates', href: '/packs/pyspark-templates' },
+  { icon: ShieldCheck, title: 'Governance & Security', href: '/packs/governance-framework' },
+  { icon: MapIcon, title: 'Migration Toolkits', href: '/packs/migration-toolkits' },
+  { icon: Activity, title: 'Workspace Monitoring', href: '/packs/workspace-monitoring' },
 ];
 
 function K({ children }: { children: ReactNode }) {
@@ -102,6 +114,8 @@ function CodeWindow({
 }
 
 export default function HomePage() {
+  const latestPosts = getBlogPosts().slice(0, 2);
+
   return (
     <main className="flex flex-1 flex-col">
       <JsonLd data={[organizationJsonLd, websiteJsonLd]} />
@@ -229,8 +243,90 @@ spark.sql(`}<S>&quot;OPTIMIZE silver.orders&quot;</S>{`)
         </div>
       </section>
 
-      {/* Patterns band */}
+      {/* AI assistant + Pro / Packs */}
       <section className="border-y border-fd-border bg-fd-card/40">
+        <div className="mx-auto max-w-6xl px-4 py-20">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-fd-primary/30 bg-fd-primary/10 px-3 py-1 text-xs font-medium text-fd-primary">
+              <Sparkles className="size-3.5" />
+              Beyond the docs
+            </span>
+            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+              An AI that cites its sources, and packs that ship as code
+            </h2>
+            <p className="mt-3 text-fd-muted-foreground">
+              Free for everyone in small doses. Pro removes the limit for $5/mo.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+            <div className="flex flex-col gap-4 rounded-2xl border border-fd-border bg-fd-card p-6">
+              <span className="inline-flex size-10 items-center justify-center rounded-lg bg-fd-primary/10 text-fd-primary ring-1 ring-inset ring-fd-primary/20">
+                <MessageCircle className="size-5" />
+              </span>
+              <div className="font-semibold">Ask AI, on every page and every code block</div>
+              <p className="text-sm text-fd-muted-foreground">
+                Grounded in the docs — it searches fabdocs.dev before answering
+                and cites the pages it used, instead of guessing. Click the
+                sparkle on any snippet to get it explained inline.
+              </p>
+              <div className="mt-1 flex items-center gap-4 text-sm">
+                <span className="text-fd-muted-foreground">
+                  <strong className="text-fd-foreground">5</strong> free questions/day
+                </span>
+                <span className="text-fd-muted-foreground">
+                  <strong className="text-fd-foreground">200</strong>/day with Pro
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 rounded-2xl border border-fd-border bg-fd-card p-6">
+              <span className="inline-flex size-10 items-center justify-center rounded-lg bg-fd-primary/10 text-fd-primary ring-1 ring-inset ring-fd-primary/20">
+                <Boxes className="size-5" />
+              </span>
+              <div className="font-semibold">5 production-ready packs, included with Pro</div>
+              <p className="text-sm text-fd-muted-foreground">
+                Real, runnable artifacts — not templates you rewrite from
+                scratch: GitHub Actions workflows, tested PySpark notebooks,
+                a OneLake security model, migration toolkits, monitoring.
+              </p>
+              <ul className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {packs.map((p) => (
+                  <li key={p.href}>
+                    <Link
+                      href={p.href}
+                      className="flex items-center gap-2 rounded-lg border border-fd-border px-3 py-2 text-sm transition-colors hover:border-fd-primary/40 hover:bg-fd-accent"
+                    >
+                      <p.icon className="size-4 shrink-0 text-fd-primary" />
+                      <span className="truncate">{p.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-2 rounded-lg bg-fd-primary px-5 py-2.5 text-sm font-semibold text-fd-primary-foreground shadow-lg shadow-fd-primary/25 transition-transform hover:-translate-y-0.5"
+            >
+              <Sparkles className="size-4" />
+              See Pro — $5/mo
+            </Link>
+            <Link
+              href="/packs"
+              className="inline-flex items-center gap-2 rounded-lg border border-fd-border bg-fd-card px-5 py-2.5 text-sm font-semibold text-fd-foreground transition-colors hover:bg-fd-accent"
+            >
+              Browse all kits
+              <ArrowRight className="size-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Patterns band */}
+      <section className="border-b border-fd-border">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 lg:grid-cols-2">
           <div>
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Patterns, not screenshots</h2>
@@ -276,6 +372,46 @@ spark.conf.set(
           </CodeWindow>
         </div>
       </section>
+
+      {/* Blog teaser */}
+      {latestPosts.length > 0 && (
+        <section className="border-b border-fd-border bg-fd-card/40">
+          <div className="mx-auto max-w-6xl px-4 py-16">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">From the blog</h2>
+                <p className="mt-2 text-fd-muted-foreground">
+                  Longer writing that pulls the reference material together.
+                </p>
+              </div>
+              <Link
+                href="/blog"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-fd-primary"
+              >
+                All posts <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {latestPosts.map((post) => {
+                const slug = blogSlug(post.info.path);
+                return (
+                  <Link
+                    key={slug}
+                    href={`/blog/${slug}`}
+                    className="group rounded-xl border border-fd-border bg-fd-card p-5 transition-colors hover:border-fd-primary/40"
+                  >
+                    <p className="text-xs text-fd-muted-foreground">{formatBlogDate(post.date)}</p>
+                    <h3 className="mt-1.5 font-semibold tracking-tight group-hover:text-fd-primary">
+                      {post.title}
+                    </h3>
+                    <p className="mt-1.5 text-sm text-fd-muted-foreground">{post.description}</p>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Newsletter */}
       <section className="mx-auto w-full max-w-6xl px-4 py-16">
