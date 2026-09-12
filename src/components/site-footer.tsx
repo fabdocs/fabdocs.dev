@@ -79,16 +79,23 @@ export function SiteFooter() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col gap-2 border-t border-fd-border pt-6 text-xs text-fd-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-4 border-t border-fd-border pt-6 text-xs text-fd-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>
             &copy; {new Date().getFullYear()} {appName}. Content licensed for reference use.
           </p>
-          <p>
-            An independent community resource. Not affiliated with, endorsed by, or
-            sponsored by Microsoft. &ldquo;Microsoft Fabric&rdquo; is a trademark of
-            Microsoft Corporation.
-          </p>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="hover:text-fd-primary">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-fd-primary">
+              Terms
+            </Link>
+          </div>
         </div>
+        <p className="mt-4 text-xs text-fd-muted-foreground">
+          An independent community resource. Not affiliated with, endorsed by, or sponsored by
+          Microsoft. &ldquo;Microsoft Fabric&rdquo; is a trademark of Microsoft Corporation.
+        </p>
       </div>
     </footer>
   );

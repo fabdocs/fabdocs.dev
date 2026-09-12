@@ -2,6 +2,7 @@ export const appName = 'fabdocs.dev';
 export const appDescription =
   'The production engineering manual for Microsoft Fabric — build, deploy, govern, and scale lakehouses, notebooks, and CI/CD without burning your capacity.';
 export const siteUrl = 'https://fabdocs.dev';
+export const contactEmail = 'contact@fabdocs.dev';
 
 export const docsRoute = '/docs';
 export const docsImageRoute = '/og/docs';
