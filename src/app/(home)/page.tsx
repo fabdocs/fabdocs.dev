@@ -19,6 +19,7 @@ import { JsonLd } from '@/components/json-ld';
 import { organizationJsonLd, websiteJsonLd } from '@/lib/seo';
 import { NewsletterSignup } from '@/components/newsletter-signup';
 import { getBlogPosts, blogSlug, formatBlogDate } from '@/lib/blog-source';
+import { Reveal } from '@/components/reveal';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
@@ -195,6 +196,7 @@ spark.sql(`}<S>&quot;OPTIMIZE silver.orders&quot;</S>{`)
       </section>
 
       {/* Audience band */}
+      <Reveal>
       <section className="border-b border-fd-border bg-fd-card/40">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 sm:grid-cols-3">
           {[
@@ -212,8 +214,10 @@ spark.sql(`}<S>&quot;OPTIMIZE silver.orders&quot;</S>{`)
           ))}
         </div>
       </section>
+      </Reveal>
 
       {/* Section grid */}
+      <Reveal>
       <section className="mx-auto w-full max-w-6xl px-4 py-20">
         <div className="max-w-2xl">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">What&rsquo;s inside</h2>
@@ -242,8 +246,10 @@ spark.sql(`}<S>&quot;OPTIMIZE silver.orders&quot;</S>{`)
           ))}
         </div>
       </section>
+      </Reveal>
 
       {/* AI assistant + Pro / Packs */}
+      <Reveal>
       <section className="border-y border-fd-border bg-fd-card/40">
         <div className="mx-auto max-w-6xl px-4 py-20">
           <div className="max-w-2xl">
@@ -324,8 +330,10 @@ spark.sql(`}<S>&quot;OPTIMIZE silver.orders&quot;</S>{`)
           </div>
         </div>
       </section>
+      </Reveal>
 
       {/* Patterns band */}
+      <Reveal>
       <section className="border-b border-fd-border">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 lg:grid-cols-2">
           <div>
@@ -372,9 +380,11 @@ spark.conf.set(
           </CodeWindow>
         </div>
       </section>
+      </Reveal>
 
       {/* Blog teaser */}
       {latestPosts.length > 0 && (
+        <Reveal>
         <section className="border-b border-fd-border bg-fd-card/40">
           <div className="mx-auto max-w-6xl px-4 py-16">
             <div className="flex flex-wrap items-end justify-between gap-4">
@@ -411,14 +421,18 @@ spark.conf.set(
             </div>
           </div>
         </section>
+        </Reveal>
       )}
 
       {/* Newsletter */}
+      <Reveal>
       <section className="mx-auto w-full max-w-6xl px-4 py-16">
         <NewsletterSignup source="home" />
       </section>
+      </Reveal>
 
       {/* CTA */}
+      <Reveal>
       <section className="mx-auto w-full max-w-6xl px-4 pb-24 pt-8 text-center">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
           Start with the slice that hurts most
@@ -443,6 +457,7 @@ spark.conf.set(
           ))}
         </div>
       </section>
+      </Reveal>
     </main>
   );
 }
