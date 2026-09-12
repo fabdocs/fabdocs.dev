@@ -1,0 +1,4 @@
+Contact: mailto:contact@fabdocs.dev
+Expires: 2027-09-12T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://fabdocs.dev/.well-known/security.txt
