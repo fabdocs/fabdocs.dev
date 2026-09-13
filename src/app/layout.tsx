@@ -2,8 +2,10 @@ import { RootProvider } from 'fumadocs-ui/provider/next';
 import './global.css';
 import { Inter } from 'next/font/google';
 import Script from 'next/script';
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { appDescription, appName, siteUrl } from '@/lib/shared';
+import { RouteProgress } from '@/components/route-progress';
 
 const cfBeaconToken = process.env.NEXT_PUBLIC_CF_BEACON_TOKEN;
 
@@ -58,6 +60,9 @@ export default function Layout({ children }: LayoutProps<'/'>) {
             __html: 'globalThis.__name||(globalThis.__name=function(f){return f});',
           }}
         />
+        <Suspense fallback={null}>
+          <RouteProgress />
+        </Suspense>
         <RootProvider>{children}</RootProvider>
         {cfBeaconToken ? (
           <Script
