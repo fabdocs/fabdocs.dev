@@ -6,7 +6,7 @@ import { BlogList } from '@/components/blog-list';
 export const metadata: Metadata = {
   title: 'Blog',
   description:
-    'The Fabric change briefing and longer-form engineering writing — what changed in Microsoft Fabric and what to do about it, plus guides that pull the docs together.',
+    'The Fabric change briefing and longer-form engineering writing that pulls the reference docs into one narrative.',
   alternates: {
     canonical: '/blog',
     types: { 'application/rss+xml': '/rss.xml' },

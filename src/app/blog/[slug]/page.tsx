@@ -65,8 +65,13 @@ export async function generateMetadata(props: PageProps<'/blog/[slug]'>): Promis
   const post = getBlogPost(slug);
   if (!post) notFound();
 
+  const imageUrl = `${siteUrl}/og/blog/${slug}`;
+
   return {
-    title: post.title,
+    // Absolute: skip the root layout's " — fabdocs.dev" suffix. Post titles
+    // are long enough on their own that the suffix pushed several past the
+    // ~60-char point where Google truncates the SERP title.
+    title: { absolute: post.title },
     description: post.description,
     alternates: { canonical: `/blog/${slug}` },
     openGraph: {
@@ -74,6 +79,13 @@ export async function generateMetadata(props: PageProps<'/blog/[slug]'>): Promis
       url: `${siteUrl}/blog/${slug}`,
       title: post.title,
       description: post.description,
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: post.title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description: post.description,
+      images: [imageUrl],
     },
   };
 }
