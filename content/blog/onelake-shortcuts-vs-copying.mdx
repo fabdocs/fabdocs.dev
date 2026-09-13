@@ -1,0 +1,71 @@
+---
+title: "OneLake shortcuts: when to link data instead of copying it"
+description: "A shortcut makes data in another storage account, cloud, or Dataverse appear inside a lakehouse with zero copy. Here's when that's the right call, and the three situations where you should copy anyway."
+date: "2026-09-13"
+tags: ["onelake", "shortcuts", "architecture", "storage"]
+---
+
+The instinct when a new data source shows up is to build a pipeline that
+copies it into your lakehouse. For a lot of Fabric sources, that instinct
+costs you storage, freshness, and a maintenance job you didn't need. A
+**shortcut** is a pointer — it makes a folder or table in another account,
+cloud, or system appear inside OneLake with no copy and no schedule, and
+every Fabric engine (Spark, SQL endpoint, Direct Lake) reads it exactly like
+a native table.
+
+## What actually gets duplicated
+
+Nothing, until something reads it. A shortcut has no CU cost to create, and
+the data never moves at rest — Fabric caches file bytes on read (up to 24
+hours, evicted LRU) rather than mirroring the whole dataset up front. The
+cost you take on is per-read: normal engine CUs plus cloud egress on the
+source provider for any cache miss.
+
+That caching detail is also the sharp edge. The cache is **not** invalidated
+when the source file changes — if an S3 object gets overwritten in place
+rather than written as a new file, Fabric can serve the stale cached version
+for up to 24 hours. Source systems that write immutable, uniquely-named
+files avoid this entirely; source systems that overwrite in place need to
+account for the staleness window. Full source-by-source auth and caching
+detail (S3, ADLS Gen2, GCS, Dataverse) is in
+[Multi-cloud shortcuts](/docs/onelake/shortcuts).
+
+## Three cases where you copy instead
+
+Shortcuts aren't always the answer. Copy the data — or mirror it, see below —
+when:
+
+1. **The source is in a different region and read-heavy.** Egress plus
+   per-read latency across regions will exceed the storage cost of a local
+   copy once query volume climbs.
+2. **You need [V-Order](/docs/onelake/v-order) or `OPTIMIZE`.** You can't
+   rewrite files you don't own — a shortcut into someone else's Delta table
+   is read-only from Fabric's side. If that table feeds a Direct Lake
+   semantic model and needs V-Order tuning, it has to live in your lakehouse.
+3. **Compliance requires the data to physically reside in your tenant.**
+   A pointer to an external account doesn't satisfy data-residency
+   requirements that specifically require the bytes to be there.
+
+## The related tool you might actually want: mirroring
+
+If the source is an *operational database* rather than a file store —
+Snowflake, Azure SQL, Cosmos DB, Postgres — don't reach for a pipeline or a
+shortcut at all. [Database mirroring](/docs/onelake/mirroring) replicates it
+continuously into Delta tables with no compute you manage, and mirrored
+storage is free up to an allowance sized to your capacity SKU. It sits
+between the two: unlike a shortcut it's an actual (read-only, auto-synced)
+copy in OneLake, and unlike a pipeline you don't write or schedule anything.
+
+## A decision order that covers most sources
+
+| Source shape | Use |
+| --- | --- |
+| Files already in ADLS/S3/GCS as Delta or Parquet | Shortcut |
+| Live operational database (Snowflake, Azure SQL, Cosmos DB, Postgres) | Mirroring |
+| Needs transformation on ingest, or an unsupported source | Pipeline + notebook |
+| Dataverse tables for a CRM/ERP join | Shortcut (read-only, schema syncs automatically) |
+
+Default to the pointer. Copy only when one of the three cases above forces
+your hand — it's a smaller surface to maintain, and in the common case
+(files already living in cloud storage you don't need to rewrite) it's also
+strictly cheaper.

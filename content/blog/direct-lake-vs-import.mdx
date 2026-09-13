@@ -1,0 +1,72 @@
+---
+title: "Direct Lake vs Import mode: picking the right one for your semantic model"
+description: "Direct Lake reads Delta tables straight from OneLake with no refresh and near-Import speed — but only if the source tables are actually tuned for it. Here's the real decision, not the marketing version."
+date: "2026-09-13"
+tags: ["direct-lake", "power-bi", "performance", "cost"]
+---
+
+Direct Lake gets pitched as "Import mode speed with no refresh," which is
+true often enough to be dangerous — it's true when the underlying Delta
+tables are shaped for it, and false in ways that look like a Direct Lake
+problem but are actually an un-tuned table. The real decision has three
+inputs: refresh tolerance, table maintenance you're willing to run, and
+query pattern.
+
+## What Direct Lake actually does
+
+A Direct Lake semantic model reads Parquet files straight from OneLake into
+memory on query — no import step, no scheduled refresh, no duplicate copy of
+the data living inside the model. When the underlying Delta table changes,
+the model **reframes**: it picks up the new version on the next query rather
+than on a refresh schedule. There's no ETL into the semantic model at all;
+the lakehouse table *is* the model's source of truth.
+
+## Why it can be exactly as fast as Import — or noticeably slower
+
+Import mode's speed comes from VertiPaq, the in-memory columnar engine.
+Direct Lake uses the same engine — it just fills it directly from Parquet
+row groups instead of from a refresh pipeline. That means Direct Lake's
+ceiling is Import-mode speed, but only when the files are shaped the way
+VertiPaq wants:
+
+- **V-Order matters more here than anywhere else.** [V-Order](/docs/onelake/v-order)
+  sorts and encodes Parquet specifically for VertiPaq transcoding — Fabric's own
+  numbers put the read-side win at 15–50% on Direct Lake and SQL-endpoint scans.
+  A table written without V-Order forces a heavier transcode on every reframe.
+- **File size and row-group alignment matter.** [Delta table optimization](/docs/onelake/delta-optimization)
+  targets 128–256 MB files; for Direct Lake specifically, keeping a 128 MB file
+  size aligned with the default 1M-row group size keeps transcoding cheap.
+  Small-file tables (frequent `MERGE`, streaming writes) transcode expensively
+  on every reframe until compacted.
+- **A cleared VACUUM window mid-query causes a silent fallback.** If `VACUUM`
+  removes the version a query was mid-reframe against, Direct Lake falls back
+  to DirectQuery until the next reframe — see
+  [VACUUM & retention](/docs/onelake/vacuum-and-retention#interaction-with-direct-lake).
+  That's a latency spike your users will notice and report as "the report is
+  slow," not "the table needed VACUUM scheduling."
+
+Skip the table maintenance and Direct Lake will still work — it just quietly
+degrades toward DirectQuery-like latency instead of failing, which makes the
+root cause harder to spot than an Import refresh simply erroring out.
+
+## When to pick each
+
+| Situation | Pick |
+| --- | --- |
+| Source is already a well-maintained Delta table (V-Order on, compacted) feeding near-real-time dashboards | **Direct Lake** |
+| Source needs heavy transformation that doesn't belong in the lakehouse layer | **Import**, transform in the query/dataflow |
+| Report needs calculated columns or model-side transformations Direct Lake can't push down | **Import** |
+| Table is small-file / streaming-written and you won't schedule compaction | **Import** (or fix the table first) |
+| Freshness matters more than absolute peak query speed | **Direct Lake** |
+
+## The CU side of the decision
+
+Import mode's cost shows up as a scheduled refresh job — predictable, but
+you pay it whether or not anyone opens the report. Direct Lake's cost shows
+up as reframe + transcode on read, which scales with actual usage instead of
+a fixed schedule. For low-traffic reports that's a real saving; for
+high-traffic dashboards against an un-tuned table, transcoding on every
+reframe can cost more than a nightly refresh would have. Run the shape you're
+considering through the [CU cost calculator](/docs/tools/cu-cost-calculator)
+before committing either way — the answer depends more on table maintenance
+than on the mode itself.

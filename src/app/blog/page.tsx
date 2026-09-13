@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { getBlogPosts, blogSlug, formatBlogDate } from '@/lib/blog-source';
+import { getBlogPosts, blogSlug } from '@/lib/blog-source';
 import { NewsletterSignup } from '@/components/newsletter-signup';
+import { BlogList } from '@/components/blog-list';
 
 export const metadata: Metadata = {
   title: 'Blog',
@@ -26,40 +26,15 @@ export default function BlogIndexPage() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-4">
-        {posts.length === 0 ? (
-          <p className="text-sm text-fd-muted-foreground">First post coming soon.</p>
-        ) : (
-          posts.map((post) => {
-            const slug = blogSlug(post.info.path);
-            return (
-              <Link
-                key={slug}
-                href={`/blog/${slug}`}
-                className="group rounded-xl border border-fd-border bg-fd-card p-5 transition hover:border-fd-primary/40"
-              >
-                <p className="text-xs text-fd-muted-foreground">{formatBlogDate(post.date)}</p>
-                <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-fd-foreground group-hover:text-fd-primary">
-                  {post.title}
-                </h2>
-                <p className="mt-1.5 text-sm text-fd-muted-foreground">{post.description}</p>
-                {post.tags.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {post.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full border border-fd-border px-2 py-0.5 text-[11px] text-fd-muted-foreground"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </Link>
-            );
-          })
-        )}
-      </div>
+      <BlogList
+        posts={posts.map((post) => ({
+          slug: blogSlug(post.info.path),
+          title: post.title,
+          description: post.description,
+          date: post.date,
+          tags: post.tags,
+        }))}
+      />
 
       <NewsletterSignup source="blog" />
     </main>
