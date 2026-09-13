@@ -6,7 +6,7 @@ import { BlogTOC } from '@/components/blog-toc';
 import { ReadingProgress } from '@/components/reading-progress';
 import { NewsletterSignup } from '@/components/newsletter-signup';
 import { JsonLd } from '@/components/json-ld';
-import { blog, blogSlug, formatBlogDate, getBlogPost } from '@/lib/blog-source';
+import { blog, blogSlug, formatBlogDate, getBlogPost, getBlogPosts } from '@/lib/blog-source';
 import { appName, siteUrl } from '@/lib/shared';
 
 export default async function BlogPostPage(props: PageProps<'/blog/[slug]'>) {
@@ -16,6 +16,13 @@ export default async function BlogPostPage(props: PageProps<'/blog/[slug]'>) {
 
   const MDX = post.body;
   const url = `${siteUrl}/blog/${slug}`;
+
+  // Sorted newest first: the next array entry is older (prev), the
+  // previous array entry is newer (next).
+  const allPosts = getBlogPosts();
+  const currentIndex = allPosts.findIndex((p) => blogSlug(p.info.path) === slug);
+  const olderPost = allPosts[currentIndex + 1];
+  const newerPost = currentIndex > 0 ? allPosts[currentIndex - 1] : undefined;
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 gap-10 px-6 py-12 md:py-16">
@@ -43,6 +50,38 @@ export default async function BlogPostPage(props: PageProps<'/blog/[slug]'>) {
         <p className="mb-8 text-lg text-fd-muted-foreground">{post.description}</p>
         <MDX components={getMDXComponents()} />
         <hr className="my-10 border-fd-border" />
+
+        {(newerPost || olderPost) && (
+          <div className="not-prose mb-10 grid gap-3 sm:grid-cols-2">
+            {newerPost ? (
+              <Link
+                href={`/blog/${blogSlug(newerPost.info.path)}`}
+                className="group rounded-xl border border-fd-border bg-fd-card p-4 transition hover:border-fd-primary/40"
+              >
+                <p className="text-xs text-fd-muted-foreground">Newer</p>
+                <p className="mt-1 font-semibold text-fd-foreground group-hover:text-fd-primary">
+                  {newerPost.title}
+                </p>
+              </Link>
+            ) : (
+              <div />
+            )}
+            {olderPost ? (
+              <Link
+                href={`/blog/${blogSlug(olderPost.info.path)}`}
+                className="group rounded-xl border border-fd-border bg-fd-card p-4 text-right transition hover:border-fd-primary/40"
+              >
+                <p className="text-xs text-fd-muted-foreground">Older</p>
+                <p className="mt-1 font-semibold text-fd-foreground group-hover:text-fd-primary">
+                  {olderPost.title}
+                </p>
+              </Link>
+            ) : (
+              <div />
+            )}
+          </div>
+        )}
+
         <div className="not-prose">
           <NewsletterSignup source="blog" />
           <p className="mt-4 text-sm text-fd-muted-foreground">
