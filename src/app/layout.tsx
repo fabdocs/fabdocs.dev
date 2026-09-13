@@ -30,6 +30,11 @@ export const metadata: Metadata = {
     'capacity units',
     'Fabric governance',
   ],
+  alternates: {
+    types: {
+      'application/rss+xml': `${siteUrl}/rss.xml`,
+    },
+  },
   openGraph: {
     type: 'website',
     siteName: appName,
