@@ -1,0 +1,74 @@
+---
+title: What Ask AI sends (and doesn't)
+description: A precise answer for the security review — exactly what data leaves your browser when you use the Ask AI assistant, and what it never sees.
+---
+
+Before rolling this out to a team, the governance question is fair: *what
+actually happens when someone asks the assistant a question on a page that
+might be open next to real tenant config?* Here's the exact answer, not a
+marketing gloss.
+
+## What gets sent
+
+When you ask a question — on a docs page, or via the sparkle button on a code
+block — three things leave your browser and go to Anthropic's API to generate
+an answer:
+
+1. **Your question text.**
+2. **The current page's URL** (e.g. `/docs/onelake/v-order`), sent as context
+   so the assistant knows what you're reading.
+3. **fabdocs.dev's own documentation content** — the assistant runs a search
+   over this site's public docs and includes the matching pages so it can cite
+   them, rather than guessing.
+
+That's the complete list. See the request body in
+[`src/app/api/chat/route.ts`](https://github.com/fabdocs/fabdocs.dev/blob/main/src/app/api/chat/route.ts)
+if you want to verify this against the source directly — the site's code is
+public.
+
+## What never gets sent
+
+- **Nothing about your Fabric tenant, workspace, or capacity.** The assistant
+  has no connection to your Microsoft Fabric environment, no API access, and
+  no way to query it. It only knows what's published on fabdocs.dev.
+- **No account or identity data.** The free tier requires no sign-up; the Pro
+  tier's subscriber check happens separately (see
+  [Privacy Policy](/privacy#the-subscriber-cookie)) and isn't part of the
+  message sent to Anthropic.
+- **Whatever you don't type.** The assistant can't see your screen, your other
+  browser tabs, or anything outside the text box you typed into and the page
+  URL you were on.
+
+## What fabdocs.dev itself retains
+
+Nothing, beyond a per-IP request count used for the daily rate limit (resets
+every 24 hours — see [Privacy Policy](/privacy#what-we-collect)). Question text
+and answers are streamed directly to your browser and not logged or stored
+server-side.
+
+## The one thing to actually be careful of
+
+<Callout type="warn">
+Don't paste real secrets, connection strings, tenant IDs, or customer data into
+a question. The assistant doesn't need them to answer a question about Fabric
+concepts, and once submitted they've left your browser and are subject to
+[Anthropic's own data handling terms](https://www.anthropic.com/legal/privacy) —
+the same as pasting them into any third-party AI tool.
+</Callout>
+
+A safe pattern: ask "how do I write an idempotent MERGE" rather than "here's my
+actual notebook with real customer table names, what's wrong with it."
+
+## For the compliance record
+
+| Question | Answer |
+| --- | --- |
+| Does the assistant have access to our tenant? | No — no connection exists |
+| Is chat history logged by fabdocs.dev? | No — streamed only, not stored |
+| What third party processes the data? | Anthropic (the model provider) |
+| Is a DPA available? | Not at this stage — this is a self-serve tool, not an enterprise contract. If your organisation needs one before allowing use, treat it the same as any other public AI chat tool for now |
+| Can it be disabled for a team? | There's no admin control — it's a public, per-visitor tool. If that's a blocker, the free docs remain fully usable without ever opening the assistant |
+
+This page and the [Privacy Policy](/privacy) are the two sources of truth here;
+if anything in this manual's marketing copy elsewhere ever seems to overstate
+what the assistant does, this page wins.

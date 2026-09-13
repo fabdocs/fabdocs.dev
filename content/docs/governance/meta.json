@@ -8,6 +8,7 @@
     "onelake-security",
     "workspace-identity",
     "audit-logs",
-    "compliance-checklist"
+    "compliance-checklist",
+    "ai-assistant-data-handling"
   ]
 }
