@@ -20,6 +20,7 @@ import { organizationJsonLd, websiteJsonLd } from '@/lib/seo';
 import { NewsletterSignup } from '@/components/newsletter-signup';
 import { getBlogPosts, blogSlug, formatBlogDate } from '@/lib/blog-source';
 import { Reveal } from '@/components/reveal';
+import { TopicsTicker } from '@/components/topics-ticker';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
@@ -194,6 +195,8 @@ spark.sql(`}<S>&quot;OPTIMIZE silver.orders&quot;</S>{`)
           </CodeWindow>
         </div>
       </section>
+
+      <TopicsTicker />
 
       {/* Audience band */}
       <Reveal>
