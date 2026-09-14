@@ -7,6 +7,7 @@
     "index",
     "cu-cost-calculator",
     "spark-pool-sizer",
+    "direct-lake-advisor",
     "capacity-sku-reference",
     "vscode-sync"
   ]

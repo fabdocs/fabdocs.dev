@@ -65,7 +65,7 @@ const sections = [
 ];
 
 const stats = [
-  { value: '33+', label: 'production guides' },
+  { value: '34+', label: 'production guides' },
   { value: '6', label: 'engineering domains' },
   { value: 'CU', label: 'impact stated on every page' },
 ];

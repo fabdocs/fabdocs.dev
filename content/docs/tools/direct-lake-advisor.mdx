@@ -1,0 +1,36 @@
+---
+title: Direct Lake vs Import advisor
+description: Answer three questions about a semantic model and get a Direct Lake / Import mode recommendation, based on table maintenance, transform needs, and traffic.
+---
+
+There's no published formula for "which is cheaper" between Direct Lake and
+Import mode — it genuinely depends on how the source table is maintained,
+what the model needs to do to the data, and how often the report is opened.
+This is a decision guide, not a calculator.
+
+<DirectLakeAdvisor />
+
+## The three questions, and why they matter
+
+1. **Is the table V-Order-tuned and compacted?** Direct Lake's read speed
+   comes from VertiPaq transcoding Parquet row groups — an un-tuned,
+   small-file table transcodes expensively on every reframe. See
+   [V-Order tuning](/docs/onelake/v-order) and
+   [Delta table optimization](/docs/onelake/delta-optimization).
+2. **Does the report need model-side transforms?** Calculated columns and
+   transformations that can't be pushed down have to happen before the
+   model — Direct Lake reads the table as-is.
+3. **How is the report queried?** Import's cost is a fixed scheduled refresh
+   regardless of usage. Direct Lake's cost scales with actual reads — a real
+   saving for low-traffic reports, but a risk for high-traffic reports on an
+   un-tuned table, where per-query transcoding can exceed what a nightly
+   refresh would have cost.
+
+Full reasoning and the CU-cost tradeoff: [Direct Lake vs Import mode: picking
+the right one for your semantic model](/blog/direct-lake-vs-import).
+
+<Callout type="info">
+This tool doesn't know your actual query volume or table state — it's a
+starting point for the conversation, not a substitute for checking
+[V-Order](/docs/onelake/v-order) and compaction status on the real table.
+</Callout>

@@ -59,6 +59,10 @@ root cause harder to spot than an Import refresh simply erroring out.
 | Table is small-file / streaming-written and you won't schedule compaction | **Import** (or fix the table first) |
 | Freshness matters more than absolute peak query speed | **Direct Lake** |
 
+Want a recommendation for a specific report instead of matching rows in a
+table? Run it through the [Direct Lake vs Import advisor](/docs/tools/direct-lake-advisor) —
+same reasoning, three questions.
+
 ## The CU side of the decision
 
 Import mode's cost shows up as a scheduled refresh job — predictable, but
