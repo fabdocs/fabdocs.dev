@@ -15,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: abs('/pricing'), lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: abs('/packs'), lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: abs('/blog'), lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
+    { url: abs('/glossary'), lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: abs('/packs/cicd-automation'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: abs('/packs/pyspark-templates'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: abs('/packs/governance-framework'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },

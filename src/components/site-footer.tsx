@@ -10,6 +10,7 @@ const columns = [
       { label: 'Data Engineering', href: '/docs/data-engineering' },
       { label: 'CI/CD & Git', href: '/docs/cicd' },
       { label: 'Governance & Security', href: '/docs/governance' },
+      { label: 'Glossary', href: '/glossary' },
     ],
   },
   {
