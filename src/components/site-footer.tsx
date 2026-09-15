@@ -18,6 +18,7 @@ const columns = [
     links: [
       { label: 'CU cost calculator', href: '/docs/tools/cu-cost-calculator' },
       { label: 'Spark pool sizer', href: '/docs/tools/spark-pool-sizer' },
+      { label: 'Fabric vs Databricks', href: '/compare/fabric-vs-databricks' },
       { label: 'Starter kits', href: '/packs' },
       { label: 'Blog', href: '/blog' },
     ],
