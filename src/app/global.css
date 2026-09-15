@@ -133,3 +133,12 @@ html > body[data-scroll-locked] {
     transform: none;
   }
 }
+
+/* HomeLayout's sticky navbar (#nd-nav) is z-40, but the Ask AI panel is
+   z-30 — on / and /blog the navbar was rendering on top of the panel,
+   hiding its header/close button. The Notebook layout (docs pages) uses
+   a different header (#nd-subnav) with no such conflict, so this is
+   scoped to #nd-nav only. */
+#nd-nav {
+  z-index: 20;
+}
