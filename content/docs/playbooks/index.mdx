@@ -8,11 +8,15 @@ Each playbook follows the same arc: **inventory → map → move a slice → val
 → cut over → decommission**. They assume you have read
 [OneLake & Delta Lake](/docs/onelake) and [CI/CD & Git](/docs/cicd).
 
+Still deciding whether to move at all, not just how? The comparison card
+below is a good place to start.
+
 <Cards>
   <Card title="From Azure Synapse Analytics" href="/docs/playbooks/from-synapse" description="Dedicated/serverless SQL pools, Spark pools, pipelines, and Synapse Link into Fabric." />
   <Card title="From Databricks" href="/docs/playbooks/from-databricks" description="Notebooks, jobs, Unity Catalog, and DLT into Fabric lakehouses + pipelines." />
   <Card title="From Snowflake" href="/docs/playbooks/from-snowflake" description="Warehouses, roles, tasks, and SnowSQL into Fabric Warehouse + OneLake." />
   <Card title="From SSIS" href="/docs/playbooks/from-ssis" description="Control flow, data flow, and SSISDB into Fabric Data Pipelines + Dataflows." />
+  <Card title="Fabric vs Databricks" href="/compare/fabric-vs-databricks" description="An honest comparison — billing model, catalog, BI integration — before you commit to migrating." />
 </Cards>
 
 ## Universal pre-work
