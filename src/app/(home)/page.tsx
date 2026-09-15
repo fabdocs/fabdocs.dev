@@ -21,6 +21,7 @@ import { NewsletterSignup } from '@/components/newsletter-signup';
 import { getBlogPosts, blogSlug, formatBlogDate } from '@/lib/blog-source';
 import { Reveal } from '@/components/reveal';
 import { TopicsTicker } from '@/components/topics-ticker';
+import { AISearchTrigger } from '@/components/ai/search';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
@@ -287,6 +288,10 @@ spark.sql(`}<S>&quot;OPTIMIZE silver.orders&quot;</S>{`)
                   <strong className="text-fd-foreground">200</strong>/day with Pro
                 </span>
               </div>
+              <AISearchTrigger className="mt-1 inline-flex w-fit items-center gap-2 rounded-lg border border-fd-border bg-fd-background px-4 py-2 text-sm font-semibold text-fd-foreground transition-colors hover:bg-fd-accent [&_svg]:size-4 [&_svg]:text-fd-primary">
+                <Sparkles />
+                Ask a question
+              </AISearchTrigger>
             </div>
 
             <div className="flex flex-col gap-4 rounded-2xl border border-fd-border bg-fd-card p-6">
