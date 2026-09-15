@@ -3,6 +3,7 @@ import {
   BookOpen,
   Boxes,
   Calculator,
+  ChevronDown,
   Database,
   GitBranch,
   Map as MapIcon,
@@ -13,8 +14,13 @@ import { appName, gitConfig } from './shared';
 /**
  * Shared layout options for the home layout and the docs / notebook layout.
  * See https://fumadocs.dev/docs/ui/layouts/notebook
+ *
+ * `menuChevron` defaults to true because HomeLayout's dropdown trigger
+ * doesn't render its own indicator. The Notebook layout's trigger already
+ * appends a ChevronDown itself, so docs/layout.tsx passes `false` to avoid
+ * showing two.
  */
-export function baseOptions(): BaseLayoutProps {
+export function baseOptions({ menuChevron = true }: { menuChevron?: boolean } = {}): BaseLayoutProps {
   return {
     nav: {
       title: (
@@ -35,7 +41,14 @@ export function baseOptions(): BaseLayoutProps {
     links: [
       {
         type: 'menu',
-        text: 'Documentation',
+        text: menuChevron ? (
+          <span className="inline-flex items-center gap-1">
+            Documentation
+            <ChevronDown className="size-3" />
+          </span>
+        ) : (
+          'Documentation'
+        ),
         items: [
           {
             icon: <Database className="size-4" />,
