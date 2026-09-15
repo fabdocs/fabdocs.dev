@@ -111,7 +111,7 @@ html > body[data-scroll-locked] {
    Two identical groups sit side by side; translating by exactly -50% loops
    seamlessly since that's the width of one group. */
 .ticker-track {
-  animation: ticker-scroll 32s linear infinite;
+  animation: ticker-scroll 90s linear infinite;
 }
 
 .ticker-track:hover {
