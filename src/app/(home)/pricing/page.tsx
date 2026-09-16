@@ -10,7 +10,7 @@ import { AI_FREE_LIMIT, AI_SUBSCRIBER_LIMIT } from '@/lib/ai-limits';
 export const metadata: Metadata = {
   title: 'Pricing',
   description:
-    'fabdocs.dev is free to read. Pro is $5/mo for a much higher daily limit on the Ask AI assistant — no account, cancel anytime.',
+    'fabdocs.dev is free to read. Pro is $5/mo for all 5 downloadable starter kits and a much higher daily limit on the Ask AI assistant — no account, cancel anytime.',
   alternates: { canonical: '/pricing' },
 };
 
@@ -22,9 +22,9 @@ const FREE_FEATURES = [
 ];
 
 const PRO_FEATURES = [
+  'All 5 starter kits — CI/CD, PySpark, governance, migration, monitoring',
   'Everything in Free',
   `Ask AI — ${AI_SUBSCRIBER_LIMIT} questions/day`,
-  'Priority when new tools and playbooks ship',
   'No account — checkout and billing run through Stripe',
   'Cancel anytime, self-serve',
 ];
@@ -32,7 +32,7 @@ const PRO_FEATURES = [
 const FAQS = [
   {
     question: 'What exactly does Pro unlock?',
-    answer: `A much higher daily limit on the Ask AI assistant — ${AI_SUBSCRIBER_LIMIT} questions per day instead of ${AI_FREE_LIMIT}. All docs, references, playbooks, and the interactive calculators stay free for everyone.`,
+    answer: `All 5 downloadable starter kits (CI/CD automation, PySpark templates, governance framework, migration toolkits, workspace monitoring), plus a much higher daily limit on the Ask AI assistant — ${AI_SUBSCRIBER_LIMIT} questions per day instead of ${AI_FREE_LIMIT}. Every guide, reference page, playbook, and interactive calculator stays free for everyone — Pro is the packs and the AI limit, nothing else is gated.`,
   },
   {
     question: 'Do I need to create an account?',
@@ -40,11 +40,11 @@ const FAQS = [
   },
   {
     question: 'Can I cancel anytime?',
-    answer: 'Yes — cancel yourself from the billing portal, no email needed. Access stays at the Pro limit through the end of the period you already paid for; it just does not renew after that.',
+    answer: 'Yes — cancel yourself from the billing portal, no email needed. Access stays at Pro — the higher AI limit and the packs — through the end of the period you already paid for; it just does not renew after that.',
   },
   {
     question: 'Is there a refund if I cancel partway through a month?',
-    answer: 'No — cancelling stops the next renewal, but the current paid period is not prorated or refunded. You keep the Pro limit until it ends.',
+    answer: 'No — cancelling stops the next renewal, but the current paid period is not prorated or refunded. You keep Pro access until it ends.',
   },
   {
     question: 'I use a shared computer / cleared my cookies and lost Pro access.',
@@ -77,7 +77,8 @@ export default async function PricingPage() {
       </h1>
       <p className="mx-auto mt-4 max-w-xl text-fd-muted-foreground">
         The whole manual — every guide, reference, playbook, and calculator — is free,
-        no sign-up. Pro just raises the daily limit on the AI assistant.
+        no sign-up. Pro unlocks the 5 downloadable starter kits and raises the
+        daily limit on the AI assistant.
       </p>
 
       <div className="mt-12 grid gap-6 text-left sm:grid-cols-2">

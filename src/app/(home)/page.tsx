@@ -69,7 +69,7 @@ const sections = [
 const stats = [
   { value: '34+', label: 'production guides' },
   { value: '6', label: 'engineering domains' },
-  { value: 'CU', label: 'impact stated on every page' },
+  { value: '5', label: 'starter kits, included with Pro' },
 ];
 
 const packs = [
@@ -181,7 +181,7 @@ export default function HomePage() {
 `}<C># Idempotent by default — re-running is always safe</C>{`
 `}<K>from</K>{` delta.tables `}<K>import</K>{` DeltaTable
 
-`}<K>await</K>{` (
+(
     DeltaTable.forName(spark, `}<S>&quot;silver.orders&quot;</S>{`)
         .alias(`}<S>&quot;t&quot;</S>{`)
         .merge(incoming.alias(`}<S>&quot;s&quot;</S>{`), `}<S>&quot;t.order_id = s.order_id&quot;</S>{`)
@@ -190,7 +190,7 @@ export default function HomePage() {
         .execute()
 )
 
-`}<C># CU impact: nightly OPTIMIZE pays for itself in a week</C>{`
+`}<C># CU impact: fewer, larger files — cheaper on every downstream read</C>{`
 spark.sql(`}<S>&quot;OPTIMIZE silver.orders&quot;</S>{`)
 `}
           </CodeWindow>
@@ -265,7 +265,8 @@ spark.sql(`}<S>&quot;OPTIMIZE silver.orders&quot;</S>{`)
               An AI that cites its sources, and packs that ship as code
             </h2>
             <p className="mt-3 text-fd-muted-foreground">
-              Free for everyone in small doses. Pro removes the limit for $5/mo.
+              The assistant is free in small doses; the packs are Pro-only.
+              $5/mo unlocks both.
             </p>
           </div>
 
@@ -374,7 +375,7 @@ spark.sql(`}<S>&quot;OPTIMIZE silver.orders&quot;</S>{`)
           <CodeWindow filename="resource_profile.py" className="lg:-rotate-1">
 {`
 `}<C># Match the profile to the workload shape —</C>{`
-`}<C># one setting flips ~20 Spark configs correctly</C>{`
+`}<C># one setting flips ~20 Spark configs at once</C>{`
 spark.conf.set(
     `}<S>&quot;spark.fabric.resourceProfile&quot;</S>{`,
     `}<S>&quot;readHeavyForSpark&quot;</S>{`,
