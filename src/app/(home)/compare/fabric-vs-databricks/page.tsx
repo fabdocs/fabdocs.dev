@@ -58,7 +58,10 @@ export default function CompareFabricDatabricksPage() {
       <JsonLd data={faqJsonLd} />
 
       <div>
-        <h1 className="text-4xl font-bold tracking-tight text-fd-foreground md:text-5xl">
+        <Link href="/compare" className="text-sm text-fd-muted-foreground hover:text-fd-primary">
+          &larr; All comparisons
+        </Link>
+        <h1 className="mt-3 text-4xl font-bold tracking-tight text-fd-foreground md:text-5xl">
           Microsoft Fabric vs Databricks
         </h1>
         <p className="mt-4 max-w-xl text-lg text-fd-muted-foreground">
