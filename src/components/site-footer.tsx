@@ -28,6 +28,7 @@ const columns = [
     links: [
       { label: 'Start here', href: '/docs' },
       { label: 'Pricing', href: '/pricing' },
+      { label: 'Changelog', href: '/changelog' },
       { label: 'GitHub', href: `https://github.com/${gitConfig.user}/${gitConfig.repo}` },
       { label: 'llms.txt', href: '/llms.txt' },
     ],

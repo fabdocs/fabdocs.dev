@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: abs('/packs'), lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: abs('/blog'), lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
     { url: abs('/glossary'), lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
+    { url: abs('/changelog'), lastModified: now, changeFrequency: 'weekly', priority: 0.4 },
     { url: abs('/compare'), lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: abs('/compare/fabric-vs-databricks'), lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: abs('/compare/fabric-vs-snowflake'), lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
