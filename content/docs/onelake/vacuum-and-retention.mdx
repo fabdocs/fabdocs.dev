@@ -21,13 +21,14 @@ Small — it is mostly file listing and delete calls. The savings are on
 ```python
 from delta.tables import DeltaTable
 
-dt = DeltaTable.forName(spark, "sales.orders")
-
-# 1. See what would be removed — dry run, deletes nothing
-dt.vacuum(retentionHours=168)  # default is 168h / 7 days
-
-# Fabric prints the candidate count; to actually preview paths:
+# 1. Preview first. DRY RUN lists candidate files and deletes nothing —
+#    this is the only safe preview. The Python vacuum() method below has
+#    no dry-run mode; it deletes on call.
 spark.sql("VACUUM sales.orders RETAIN 168 HOURS DRY RUN").show(truncate=False)
+
+# 2. Actually delete, once the preview looks right.
+dt = DeltaTable.forName(spark, "sales.orders")
+dt.vacuum(retentionHours=168)  # default is 168h / 7 days
 ```
 
 <Callout type="warn">

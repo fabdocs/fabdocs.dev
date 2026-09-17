@@ -22,7 +22,7 @@ consumed by one nightly Spark job should have it **off**.
 ## Control it at three levels
 
 ```python
-# 1. Session default (Fabric enables this by default)
+# 1. Session default — don't assume it's already on (see Runtime, below)
 spark.conf.set("spark.sql.parquet.vorder.default", "true")
 
 # 2. Per write

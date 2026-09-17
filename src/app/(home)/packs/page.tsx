@@ -72,8 +72,8 @@ export default function PacksPage() {
         </h1>
         <p className="mt-4 text-fd-muted-foreground">
           The architectural guides stay free. These are the production-ready
-          components that save the 20 hours of trial and error: tested scripts,
-          templates, and automation — not theory. All five are included with{' '}
+          components that skip the trial and error: tested scripts, templates,
+          and automation — not theory. All five are included with{' '}
           <Link href="/pricing" className="text-fd-primary underline-offset-2 hover:underline">
             Pro
           </Link>

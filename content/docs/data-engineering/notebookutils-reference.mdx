@@ -149,7 +149,7 @@ log = {"workspace": ctx["currentWorkspaceId"], "notebook": ctx["currentNotebookN
 | Call | Purpose |
 | --- | --- |
 | `session.stop()` | Stop the current Spark session (frees the capacity sooner in a pipeline) |
-| `mssparkutils.session.restartPython()` | Restart the Python interpreter, keep the Spark session |
+| `notebookutils.session.restartPython()` | Restart the Python interpreter, keep the Spark session |
 
 Calling `session.stop()` at the end of a scheduled notebook returns the pool to
 the capacity faster than waiting for the idle timeout — a small CU saving that
