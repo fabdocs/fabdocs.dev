@@ -7,9 +7,9 @@ export default function Layout({ children }: LayoutProps<'/docs'>) {
   return (
     <DocsLayout
       tree={source.getPageTree()}
-      {...baseOptions({ menuChevron: false })}
+      {...baseOptions({ variant: 'docs' })}
       tabMode="navbar"
-      nav={{ ...baseOptions().nav, mode: 'top' }}
+      nav={{ ...baseOptions({ variant: 'docs' }).nav, mode: 'top' }}
       sidebar={{ defaultOpenLevel: 0 }}
     >
       <AISearch>
