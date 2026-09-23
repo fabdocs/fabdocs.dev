@@ -17,7 +17,7 @@ export default function BlogIndexPage() {
   const posts = getBlogPosts();
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-6 py-16 md:py-20">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-6 py-16 md:py-20">
       <div>
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-4xl font-bold tracking-tight text-fd-foreground md:text-5xl">
@@ -30,7 +30,7 @@ export default function BlogIndexPage() {
             RSS
           </a>
         </div>
-        <p className="mt-4 max-w-xl text-lg text-fd-muted-foreground">
+        <p className="mt-4 max-w-2xl text-lg text-fd-muted-foreground">
           The change briefing — new runtimes, API updates, breaking changes —
           and longer engineering writing that pulls the reference material into
           one narrative.

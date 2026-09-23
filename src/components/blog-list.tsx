@@ -63,9 +63,9 @@ export function BlogList({ posts }: { posts: BlogListPost[] }) {
         ))}
       </div>
 
-      <div className="flex flex-col gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         {visiblePosts.length === 0 ? (
-          <p className="text-sm text-fd-muted-foreground">
+          <p className="text-sm text-fd-muted-foreground sm:col-span-2">
             No posts tagged &ldquo;{activeTag}&rdquo; yet.
           </p>
         ) : (
@@ -73,7 +73,7 @@ export function BlogList({ posts }: { posts: BlogListPost[] }) {
             <Link
               key={post.slug}
               href={`/blog/${post.slug}`}
-              className="group rounded-xl border border-fd-border bg-fd-card p-5 transition hover:border-fd-primary/40"
+              className="group flex flex-col rounded-xl border border-fd-border bg-fd-card p-5 transition hover:border-fd-primary/40"
             >
               <p className="text-xs text-fd-muted-foreground">{formatBlogDate(post.date)}</p>
               <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-fd-foreground group-hover:text-fd-primary">
