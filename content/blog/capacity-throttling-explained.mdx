@@ -1,0 +1,90 @@
+---
+title: "What happens when a Fabric capacity throttles"
+description: "Smoothing absorbs spikes and bursting lets a job briefly exceed its SKU — sustained overuse throttles in three distinct stages, not one cliff."
+date: "2026-09-23"
+tags: ["capacity", "cost", "performance"]
+---
+
+"The capacity is throttling" gets used as if it's one event — a switch that
+flips and everything stops. It isn't. By the time you're actually rejected,
+you've already passed through two earlier stages, and most teams never notice
+the first one at all.
+
+## The part that isn't throttling: smoothing
+
+A Fabric capacity doesn't bill or enforce load instantaneously. Background
+operations — scheduled notebooks, pipeline runs, semantic model refreshes —
+are smoothed over a rolling **~24 hour** window. Interactive operations
+(someone clicking around a report, running a cell) are smoothed over a much
+shorter **~5 minute** window.
+
+That's why a five-minute spike from a heavy notebook run doesn't require a
+SKU sized for that peak instant — it gets averaged against everything else
+the capacity did in the surrounding day. This is also why watching CU
+*at the instant something feels slow* is misleading: the number that matters
+is the smoothed one, not the raw spike.
+
+## Bursting: a job can borrow ahead
+
+Every [F SKU](/docs/tools/capacity-sku-reference) publishes a base and a
+burst vCore figure for Spark — F64, for example, gives you 128 base vCores
+but can transiently allocate up to 384. A single job can use more than the
+SKU nominally provides for a short period; the overage gets smoothed back
+against the capacity afterward, the same way the 24-hour window works for
+background jobs generally.
+
+This is the mechanism that makes "one big job ran today" usually fine, and
+"this pattern runs at this volume every day" the thing that actually gets
+you throttled — bursting covers the exception, not the new normal.
+
+## The three stages, in order
+
+Sustained overuse — not a single spike, but load that keeps exceeding the
+capacity after smoothing — moves through stages in a specific order:
+
+1. **Interactive delay.** Interactive operations (report queries, notebook
+   cells run by hand) start queuing. Nothing fails yet; it's just slower than
+   it should be. This is the stage almost everyone dismisses as "the capacity
+   feels sluggish today" without connecting it to sustained overuse.
+2. **Interactive rejection.** Interactive operations start failing outright.
+   Background jobs — scheduled pipelines, refreshes — are still running
+   normally at this point. Users notice; on-call doesn't always get paged,
+   because scheduled jobs are still green.
+3. **Background rejection.** Scheduled work itself starts failing. This is
+   the stage that generates incident tickets, and it's the *last* one to hit
+   — by the time you're here, interactive users have been degraded for a
+   while already.
+
+The practical takeaway: **interactive delay is the warning**, not background
+rejection. If you wait for a scheduled job to fail before investigating,
+you've already been in stage one for some unknown amount of time.
+
+## Where to actually watch this
+
+The Capacity Metrics app is the tool built for this — it shows CU
+consumption against the smoothed windows and how close a capacity is to each
+threshold, per item and per operation. Check it before assuming a "slow
+today" report is a coincidence.
+
+## The two real levers
+
+<Callout type="warn">
+Autoscale is not a substitute for right-sizing — it's a release valve with a
+cost attached. Set a ceiling, or a spiky Spark job can quietly become an
+expensive one.
+</Callout>
+
+- **Spark autoscale.** Optional, billed extra per-second beyond the base SKU.
+  Absorbs genuinely spiky Spark load without a capacity-wide throttle, at a
+  direct cost — set a ceiling rather than leaving it unbounded.
+- **Right-sizing the SKU.** Model your actual peak concurrent load with the
+  [CU cost calculator](/docs/tools/cu-cost-calculator) and the
+  [Spark pool sizer](/docs/tools/spark-pool-sizer) rather than reacting to a
+  throttle after the fact. Add 30–50% headroom for concurrency — reports,
+  pipelines, and ad-hoc Spark rarely land at completely separate times.
+
+A pattern that holds up in practice: a **reserved** SKU sized for the
+steady-state baseline, a small **pay-as-you-go** capacity for dev work that
+gets paused outside business hours, and Spark autoscale with a ceiling to
+absorb month-end spikes without buying a permanently bigger reserved tier
+for load that only shows up a few days a month.

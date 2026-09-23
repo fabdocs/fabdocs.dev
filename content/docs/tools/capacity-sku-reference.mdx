@@ -42,6 +42,11 @@ F32 + dozens of Pro seats — model both.
 
 ## Autoscale, bursting, smoothing, throttling
 
+For the full walkthrough of what happens in what order when a capacity is
+overloaded — and why interactive delay, not a failed scheduled job, is the
+real warning sign — see [What happens when a Fabric capacity
+throttles](/blog/capacity-throttling-explained).
+
 - **Smoothing:** background jobs (scheduled notebooks, pipeline runs, model
   refreshes) are spread over ~24h; interactive operations over ~5 minutes. A
   short spike doesn't require a SKU sized for the peak instant.
