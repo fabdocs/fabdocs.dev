@@ -6,7 +6,14 @@ import { BlogTOC } from '@/components/blog-toc';
 import { ReadingProgress } from '@/components/reading-progress';
 import { NewsletterSignup } from '@/components/newsletter-signup';
 import { JsonLd } from '@/components/json-ld';
-import { blog, blogSlug, formatBlogDate, getBlogPost, getBlogPosts } from '@/lib/blog-source';
+import {
+  blog,
+  blogSlug,
+  formatBlogDate,
+  getBlogPost,
+  getBlogPosts,
+  getRelatedPosts,
+} from '@/lib/blog-source';
 import { appName, siteUrl } from '@/lib/shared';
 
 export default async function BlogPostPage(props: PageProps<'/blog/[slug]'>) {
@@ -23,6 +30,7 @@ export default async function BlogPostPage(props: PageProps<'/blog/[slug]'>) {
   const currentIndex = allPosts.findIndex((p) => blogSlug(p.info.path) === slug);
   const olderPost = allPosts[currentIndex + 1];
   const newerPost = currentIndex > 0 ? allPosts[currentIndex - 1] : undefined;
+  const relatedPosts = getRelatedPosts(slug);
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 gap-10 px-6 py-12 md:py-16">
@@ -50,6 +58,28 @@ export default async function BlogPostPage(props: PageProps<'/blog/[slug]'>) {
         <p className="mb-8 text-lg text-fd-muted-foreground">{post.description}</p>
         <MDX components={getMDXComponents()} />
         <hr className="my-10 border-fd-border" />
+
+        {relatedPosts.length > 0 && (
+          <div className="not-prose mb-10">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-fd-muted-foreground">
+              Related
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {relatedPosts.map((related) => (
+                <Link
+                  key={related.info.path}
+                  href={`/blog/${blogSlug(related.info.path)}`}
+                  className="group rounded-xl border border-fd-border bg-fd-card p-4 transition hover:border-fd-primary/40"
+                >
+                  <p className="font-semibold text-fd-foreground group-hover:text-fd-primary">
+                    {related.title}
+                  </p>
+                  <p className="mt-1 text-sm text-fd-muted-foreground">{related.description}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {(newerPost || olderPost) && (
           <div className="not-prose mb-10 grid gap-3 sm:grid-cols-2">
