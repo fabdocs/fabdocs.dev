@@ -19,6 +19,11 @@ const COMPARISONS = [
     href: '/compare/fabric-vs-snowflake',
     description: 'Storage openness, compute sizing, and governance.',
   },
+  {
+    title: 'Fabric vs Power BI Premium',
+    href: '/compare/fabric-vs-power-bi-premium',
+    description: 'What changed, whether you still need Premium, and what happens to a P SKU you already own.',
+  },
 ];
 
 export default function ComparePage() {
