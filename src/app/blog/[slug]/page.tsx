@@ -5,6 +5,7 @@ import { getMDXComponents } from '@/components/mdx';
 import { BlogTOC } from '@/components/blog-toc';
 import { ReadingProgress } from '@/components/reading-progress';
 import { NewsletterSignup } from '@/components/newsletter-signup';
+import { PageFeedback } from '@/components/page-feedback';
 import { JsonLd } from '@/components/json-ld';
 import {
   blog,
@@ -111,6 +112,10 @@ export default async function BlogPostPage(props: PageProps<'/blog/[slug]'>) {
             )}
           </div>
         )}
+
+        <div className="not-prose mb-6">
+          <PageFeedback page={`/blog/${slug}`} />
+        </div>
 
         <div className="not-prose">
           <NewsletterSignup source="blog" />

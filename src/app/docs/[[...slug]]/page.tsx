@@ -4,19 +4,22 @@ import {
   DocsDescription,
   DocsPage,
   DocsTitle,
+  EditOnGitHub,
   MarkdownCopyButton,
   ViewOptionsPopover,
 } from 'fumadocs-ui/layouts/notebook/page';
+import { buttonVariants } from 'fumadocs-ui/components/ui/button';
 import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/components/mdx';
 import type { Metadata } from 'next';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
-import { gitConfig } from '@/lib/shared';
+import { gitConfig, siteUrl } from '@/lib/shared';
 import { JsonLd } from '@/components/json-ld';
 import { articleJsonLd, breadcrumbJsonLd } from '@/lib/seo';
 import { AISearchTrigger } from '@/components/ai/search';
-import { MessageCircleIcon } from 'lucide-react';
+import { Flag, MessageCircleIcon } from 'lucide-react';
 import { NewsletterSignup } from '@/components/newsletter-signup';
+import { PageFeedback } from '@/components/page-feedback';
 
 export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
   const params = await props.params;
@@ -25,6 +28,12 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
 
   const MDX = page.data.body;
   const markdownUrl = getPageMarkdownUrl(page).url;
+  const repoUrl = `https://github.com/${gitConfig.user}/${gitConfig.repo}`;
+  const reportIssueUrl = `${repoUrl}/issues/new?${new URLSearchParams({
+    title: `Issue on: ${page.data.title}`,
+    body: `Page: ${siteUrl}${page.url}\n\nWhat's wrong:\n`,
+    labels: 'docs',
+  })}`;
 
   const crumbs = [{ name: 'Documentation', url: '/docs' }];
   if (params.slug && params.slug.length > 1) {
@@ -58,6 +67,13 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
           <MessageCircleIcon />
           Ask AI
         </AISearchTrigger>
+        <EditOnGitHub
+          href={`${repoUrl}/edit/${gitConfig.branch}/content/docs/${page.path}`}
+        />
+        <a href={reportIssueUrl} target="_blank" rel="noreferrer noopener" className={buttonVariants({ color: 'secondary', size: 'sm', className: 'gap-1.5' })}>
+          <Flag className="size-3.5" />
+          Report an issue
+        </a>
       </div>
       <DocsBody>
         <MDX
@@ -67,7 +83,10 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
           })}
         />
       </DocsBody>
-      <div className="mt-10 border-t border-fd-border pt-6">
+      <div className="mt-10">
+        <PageFeedback page={page.url} />
+      </div>
+      <div className="mt-6 border-t border-fd-border pt-6">
         <p className="mb-3 text-sm font-medium text-fd-foreground">
           Stay ahead of Fabric changes
         </p>
