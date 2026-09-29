@@ -1,0 +1,85 @@
+---
+title: "Workspace identity vs. service principal for Fabric auth"
+description: "A workspace identity is free, secret-free, and Fabric-managed — but it isn't always the right choice over a service principal. Here's when each one wins."
+date: "2026-09-29"
+tags: ["governance", "security", "cicd"]
+---
+
+Every Fabric item that reaches out to Azure storage, Key Vault, or another
+tenant's resources needs to authenticate as *something*. For years the default
+answer was "create a service principal, store the secret in a variable
+library, rotate it before it expires." **Workspace identity** removes the
+secret entirely — but it's not a strict upgrade, and defaulting to it
+everywhere creates its own problems.
+
+## What a workspace identity actually is
+
+A managed Entra service principal that Fabric creates and owns, tied to
+exactly one workspace. Items in that workspace — shortcuts, notebooks,
+pipeline copy activities — can authenticate *as the workspace* with no client
+secret or certificate to generate, store, or rotate. The full setup, including
+enabling trusted access on the storage account side, is in
+[Workspace identity](/docs/governance/workspace-identity).
+
+The pitch is real: nothing to put in a variable library, nothing that expires
+on a Tuesday and breaks a pipeline six months later, and it works with
+storage-account firewalls that would otherwise need to allow Fabric's outbound
+IP ranges.
+
+## Where it falls short
+
+**It's per-workspace, permanently.** A workspace identity has no existence
+outside the workspace that owns it. Delete and recreate the workspace, and you
+get a *new* principal — every role assignment and network rule on the storage
+side has to be redone from scratch. A service principal you manage yourself
+survives a workspace being rebuilt.
+
+**Cross-tenant access doesn't trust it.** If the target storage account lives
+in a different Entra tenant — a client's subscription, a separate business
+unit's tenant — that tenant has no reason to trust a principal Fabric created
+in yours. A service principal (or SPN-based app registration with a
+cross-tenant guest role) is still the mechanism there.
+
+**Dev/test/prod each get their own.** Because it's scoped to the workspace,
+promoting a deployment pipeline from test to prod doesn't carry the identity
+forward — prod's workspace identity has to be granted on prod's storage
+account independently, ahead of time, or the first production deploy fails on
+auth. A single SPN reused (with per-stage secrets) across stages sidesteps
+that setup step, at the cost of being a secret you now have to rotate three
+times instead of never.
+
+## A decision order
+
+| Situation | Use |
+| --- | --- |
+| Same-tenant Azure storage, firewall-protected | Workspace identity |
+| Cross-tenant access (client subscription, separate BU tenant) | Service principal |
+| Workspace gets rebuilt/recreated regularly (ephemeral dev workspaces) | Service principal — avoids re-wiring grants every time |
+| Standard dev/test/prod promotion via deployment pipelines | Workspace identity, granted on all three storage accounts up front |
+| Connection already specifies an explicit credential | That credential wins regardless — see precedence below |
+
+<Callout type="warn">
+If a connection has an explicit credential configured (account key, SPN
+secret), it takes precedence over workspace identity even if the workspace
+identity exists and is granted access. Switching a connection to use the
+workspace identity means explicitly changing its auth method, not just
+creating the identity.
+</Callout>
+
+## The CI/CD trap
+
+The most common failure mode isn't picking the wrong option — it's picking
+workspace identity correctly, then forgetting it doesn't travel with a
+deployment pipeline promotion. Each of dev, test, and prod has its own
+workspace identity with its own object ID. If you grant only dev's identity on
+the storage account and rely on deployment pipelines to promote the rest, the
+first prod run fails with an authorization error that looks like a permissions
+bug rather than what it is: a workspace identity that was never granted
+anywhere. Grant all three up front, and keep the per-stage storage account
+names in a [variable library](/docs/cicd/variable-libraries) rather than
+hardcoding them into the connection.
+
+Default to workspace identity for same-tenant Azure storage — it's less to
+maintain and nothing to rotate. Reach for a service principal specifically
+when you need an identity that outlives the workspace, or one another tenant
+will actually trust.
