@@ -1,0 +1,76 @@
+---
+title: "Three ways OneLake security quietly doesn't apply"
+description: "Defined once, enforced everywhere — except a fixed-identity model, an Admin role, or an untested rollout can each quietly let OneLake security slip."
+date: "2026-09-29"
+tags: ["onelake", "governance", "security"]
+---
+
+**OneLake security** is a real fix for a real problem: before it existed,
+row- and column-level rules lived separately in the SQL endpoint and in Power
+BI models, and a Spark notebook reading the same table saw everything,
+unfiltered. Define a role once on the lakehouse now, and Spark, the SQL
+endpoint, and Direct Lake are all supposed to enforce it identically. Full
+setup and role syntax is in [OneLake security](/docs/governance/onelake-security).
+
+The "supposed to" is doing real work in that sentence. Three specific
+configurations quietly take a table back out from under OneLake security's
+protection, and none of them raise an error when they do.
+
+## 1. A Direct Lake model set to a fixed identity
+
+Direct Lake enforces OneLake security only when the semantic model
+authenticates with **single sign-on** — the report viewer's own identity flows
+through to OneLake, and their role membership applies. Set the model to a
+**fixed identity** instead (a service account, commonly used to avoid
+per-user Direct Lake licensing friction), and that one identity's permissions
+apply to every viewer, regardless of who they are or what role they belong
+to.
+
+This is the sharpest edge of the three because it fails silently in the
+specific way that's hardest to catch in testing: the report *works*, returns
+data, and looks correct — it's just not filtered per-viewer anymore. If you
+inherited a Direct Lake model and don't know its identity setting, that's the
+first thing to check before assuming its OneLake roles are doing anything.
+
+## 2. Workspace Admin and Member roles
+
+These roles can bypass OneLake security by design — they manage the
+underlying data, so Fabric doesn't filter what they see. That's a reasonable
+default, but it means the size of your Admin/Member list is effectively the
+size of your "sees everything, regardless of role" list. A workspace with a
+dozen Members who only ever open reports, added there because it was the
+easiest way to grant edit access to one dashboard, is a dozen people with a
+standing bypass they don't need and probably don't know they have.
+
+Audit who holds Admin/Member on any workspace with a lakehouse carrying
+RLS/CLS roles, and drop anyone who doesn't actually need to manage the data
+itself down to Contributor or Viewer — those workspace roles don't carry the
+bypass. The audit trail for who's in which role lives in the same place as
+everything else — see [Audit logs](/docs/governance/audit-logs).
+
+## 3. An untested "default deny"
+
+Any table not explicitly listed in a role is supposed to be invisible to that
+role — no role, no rows. That's the correct behavior, and it's also the
+easiest one to get backwards without noticing, because a misconfigured role
+that grants too much looks identical to a correctly-scoped one until someone
+outside the intended group actually signs in and checks. The rollout pattern
+worth following exactly: sign in as a real member of each role — not the
+admin building the roles — and confirm Spark, the SQL endpoint, *and* a
+Direct Lake report each return the filtered set, not just one of the three.
+
+<Callout type="warn">
+Testing as the admin who defined the roles tells you the roles parse
+correctly. It tells you nothing about what a non-privileged member actually
+sees, because that admin's own access likely isn't gated by the roles being
+tested.
+</Callout>
+
+## The pattern across all three
+
+None of these are bugs in OneLake security — each is documented, intentional
+behavior. What they share is that the failure mode is silent: nothing errors,
+the query returns rows, and the gap only shows up when someone checks from
+the actual viewer's seat instead of the builder's. Treat "roles are defined"
+and "roles are enforced for the people who matter" as two separate things to
+verify, not one.
