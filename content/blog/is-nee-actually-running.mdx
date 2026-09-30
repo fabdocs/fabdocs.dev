@@ -1,0 +1,87 @@
+---
+title: "Is Fabric's Native Execution Engine actually running?"
+description: "Turning NEE on doesn't error if it isn't doing anything. The setting can be enabled and still leave your most expensive query running on the JVM."
+date: "2026-09-30"
+tags: ["spark", "performance", "cost"]
+---
+
+The **Native Execution Engine** replaces parts of the JVM-based Spark
+physical plan with a vectorized C++ engine, and the pitch is legitimately
+good: 2–4x faster execution on scan- and aggregation-heavy workloads, no
+separate charge, same SQL and DataFrame API. Full setup is in [Native
+Execution Engine](/docs/data-engineering/native-execution-engine). The part
+that doesn't get said often enough: turning the setting on tells you nothing
+about whether it's doing anything for the query you actually care about.
+
+## Why "enabled" and "running" aren't the same claim
+
+NEE works operator-by-operator, not plan-by-plan. If your query has five
+operators and one of them — commonly a Python or Pandas UDF — isn't
+supported, only that operator falls back to the JVM. The other four still run
+native, the query still returns the right answer, and nothing in the output
+tells you that happened. A mixed plan is normal and still faster than all-JVM,
+which is exactly why it's easy to assume NEE is "working" when the one
+operator that fell back is also the one doing most of the work.
+
+## Checking the setting isn't checking the plan
+
+There's a second, earlier way to end up here: setting
+`spark.native.enabled` at the session level only takes effect for queries
+planned *after* it's set. A common sequence — run a few exploratory cells,
+then add a `%%configure` cell turning NEE on partway through the same
+session — leaves every query planned before that cell still fully on the
+JVM, silently. Setting it at the Environment level instead of per-session
+avoids this specific mistake entirely, which is also why the docs recommend
+Environment-level as the default.
+
+## The actual check
+
+```python
+df = spark.sql("""
+  SELECT customer_id, sum(amount) AS total
+  FROM silver.orders
+  GROUP BY customer_id
+""")
+df.explain("formatted")
+```
+
+Look for operators prefixed `Velox` or `Native` — `VeloxHashAggregate`,
+`NativeScan`. A node still printed as plain `HashAggregate` or `Project` fell
+back to the JVM for that operator specifically. The only node that actually
+matters here is the **expensive** one — the big scan or the big join. A
+cheap `Project` staying on the JVM costs nothing; a `HashAggregate` over your
+largest table staying on the JVM is the entire win, gone.
+
+## What actually causes a fallback
+
+| Cause | Fix |
+| --- | --- |
+| Python / Pandas UDFs | Rewrite as native Spark SQL expressions where possible — this is the most common one |
+| Some regex / date functions | Check the supported-functions list for your Runtime version |
+| Complex nested types in specific operators | Flatten before the operator, re-nest after |
+| Write paths | NEE accelerates reads/compute, not all writes — expected, not a bug |
+
+<Callout type="info">
+If your notebook's hot path calls a Python UDF on every row of your biggest
+table, that's very likely the operator that isn't native — and the one where
+it would have mattered most.
+</Callout>
+
+## A five-minute audit worth doing once a quarter
+
+1. Confirm NEE is set at the Environment level, not scattered across
+   individual notebooks.
+2. Run `explain("formatted")` on your five most expensive scheduled jobs —
+   not the ones you remember, the ones the [Capacity Metrics
+   app](/docs/tools/capacity-sku-reference) says actually cost the most.
+3. For any job where the expensive node isn't native, find and remove the
+   Python UDF (or other blocker) from that specific operator.
+4. Re-benchmark CU per run before and after, and keep the number somewhere —
+   a job's README, a [changelog](/changelog) entry, whatever your team
+   actually reads. "NEE is on" isn't worth recording; "this job's CU cost
+   dropped 40% after removing the UDF in the aggregation step" is.
+
+Resource profiles are the other lever on the same knob — if you haven't
+picked one for a workload's shape, [Resource
+profiles](/docs/data-engineering/resource-profiles) is the companion piece to
+this.

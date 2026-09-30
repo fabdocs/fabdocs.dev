@@ -95,3 +95,8 @@ A mixed plan is normal and still faster than all-JVM. Only worry if the
 3. Run `explain("formatted")` on your top 5 most expensive queries.
 4. Remove Python UDFs from hot paths — they are the most common fallback.
 5. Re-benchmark CU per run before and after; keep the number in the job's README.
+
+The setting being on doesn't mean your most expensive query is actually
+running native — see [Is Fabric's Native Execution Engine actually
+running?](/blog/is-nee-actually-running) for how the fallback hides in a
+plan that still looks fine.
