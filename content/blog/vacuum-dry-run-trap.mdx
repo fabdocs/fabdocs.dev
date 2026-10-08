@@ -1,0 +1,86 @@
+---
+title: "Python's Delta vacuum() has no dry run — it deletes now"
+description: "SQL's VACUUM ... DRY RUN previews what would be deleted. The Python vacuum() method looks like it should work the same way — it doesn't. It deletes on call."
+date: "2026-10-08"
+tags: ["delta", "onelake", "spark"]
+---
+
+`VACUUM` deletes Parquet files no longer referenced by the current Delta
+version and older than the retention threshold — a normal, necessary part of
+keeping OneLake storage billing under control on tables with heavy
+`MERGE`/`UPDATE` churn. Full procedure and retention guidance by table type is
+in [VACUUM & retention](/docs/onelake/vacuum-and-retention). The part worth
+calling out on its own: the two ways to run it don't behave the same way, and
+the difference is a preview versus an irreversible delete.
+
+## Two commands, one looks safer than it is
+
+```sql
+-- Lists candidate files. Deletes nothing.
+VACUUM sales.orders RETAIN 168 HOURS DRY RUN
+```
+
+```python
+# Deletes on call. There is no dry-run parameter.
+dt = DeltaTable.forName(spark, "sales.orders")
+dt.vacuum(retentionHours=168)
+```
+
+The SQL form's `DRY RUN` keyword is the only safe preview — it lists what
+*would* be removed without touching anything. The Python `DeltaTable.vacuum()`
+method has no equivalent argument. There's no `dry_run=True`, no confirmation
+step, no staging mode. Calling it with any retention value deletes files
+immediately, in that call.
+
+## Why this specific mix-up happens
+
+Most Delta/Spark APIs that can destroy data gate it behind an explicit flag —
+it's a reasonable pattern to expect here too, and several adjacent tools do
+offer exactly that. The SQL `DRY RUN` keyword existing right next to the
+Python method reinforces the expectation: if you tested the behavior in a SQL
+cell first and it previewed safely, switching to the Python API for the same
+operation in a notebook feels like it should carry the same safety net
+forward. It doesn't — they're two different code paths, and only one of them
+previews.
+
+## The safe sequence
+
+```python
+from delta.tables import DeltaTable
+
+# 1. Preview first, always, regardless of which API you'll use to actually run it.
+spark.sql("VACUUM sales.orders RETAIN 168 HOURS DRY RUN").show(truncate=False)
+
+# 2. Only after confirming the preview looks right:
+dt = DeltaTable.forName(spark, "sales.orders")
+dt.vacuum(retentionHours=168)
+```
+
+Run the SQL `DRY RUN` form first even if your production job calls the Python
+method — it costs nothing and is the only point in the sequence where you can
+still change your mind.
+
+## The second trap once you're past the first
+
+Previewing correctly doesn't protect you from the other VACUUM footgun:
+retention set shorter than your longest-running reader. A Spark job that
+started three hours ago holds references to files as they existed at job
+start. `VACUUM ... RETAIN 1 HOURS` run against that same table mid-job can
+delete those files out from under it — the job doesn't get a stale read, it
+fails outright with `FileNotFoundException`.
+
+<Callout type="warn">
+Fabric blocks `RETAIN` below 168 hours by default specifically because of
+this. If you disable the check
+(`spark.databricks.delta.retentionDurationCheck.enabled = false`) for a
+maintenance job that genuinely needs shorter retention, confirm nothing else
+is reading the table in that window first, and re-enable the check
+immediately after.
+</Callout>
+
+Treat both traps as the same underlying lesson: VACUUM's danger isn't the
+command itself, it's that neither "did I preview this" nor "is anything still
+reading this table" is enforced by default in the API you're most likely to
+call from a notebook. Preview explicitly, check your retention window against
+your longest reader, and don't assume the safety rail from one interface
+carries over to the other.

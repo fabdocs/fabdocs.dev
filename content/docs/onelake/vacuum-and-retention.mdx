@@ -31,6 +31,9 @@ dt = DeltaTable.forName(spark, "sales.orders")
 dt.vacuum(retentionHours=168)  # default is 168h / 7 days
 ```
 
+Why the Python method is easy to call by mistake expecting a preview: [Python's
+Delta vacuum() has no dry run — it deletes now](/blog/vacuum-dry-run-trap).
+
 <Callout type="warn">
 Never lower retention below the longest-running reader against the table. A
 Spark job that started 3 hours ago holds references to files as they were at
