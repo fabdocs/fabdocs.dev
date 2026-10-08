@@ -66,7 +66,10 @@ spark.sql("DESCRIBE DETAIL my_table").select("minReaderVersion", "minWriterVersi
 ```
 
 If a new writer feature bumped the version, confirm every engine that writes the
-table is on a compatible Runtime before promoting.
+table is on a compatible Runtime before promoting — this is the one breakage
+that isn't contained to the job you upgraded; see [A Fabric Runtime upgrade
+can lock other jobs out of a
+table](/blog/runtime-upgrade-delta-protocol-trap) for why.
 
 </Step>
 

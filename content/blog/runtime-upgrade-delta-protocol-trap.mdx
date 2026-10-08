@@ -1,0 +1,74 @@
+---
+title: "A Fabric Runtime upgrade can lock other jobs out of a table"
+description: "A Runtime upgrade feels isolated to one notebook. The Delta protocol bump it can trigger isn't — it can stop every other job from writing that table."
+date: "2026-10-08"
+tags: ["spark", "delta", "cicd"]
+---
+
+A **Fabric Runtime** is a pinned bundle — Spark, Delta Lake, Python, Java —
+and the obvious risk when you upgrade one is that *your* notebook breaks:
+ANSI mode turns a silent `NULL` into a raised error, a pandas 2.x removal
+breaks a transform, a stricter CSV schema inference needs an explicit schema.
+Those are real, and they're all contained to the job you just upgraded. Full
+setup and the upgrade procedure is in [Runtime
+upgrades](/docs/data-engineering/runtime-upgrades).
+
+The one that isn't contained is the Delta protocol version.
+
+## How one upgrade becomes everyone's problem
+
+Delta Lake tables carry a protocol version — `minReaderVersion` and
+`minWriterVersion` — recorded in the table itself, not per-job. Some newer
+Delta features (deletion vectors, liquid clustering) require writing in a
+way that raises `minWriterVersion` the moment they're used. Once that
+happens, **any engine below that writer version can no longer write the
+table** — not just the notebook you upgraded, every other job, pipeline, or
+external engine that touches it.
+
+That's a materially different failure than the behavior-change category.
+ANSI mode breaking your query is a bug in the thing you changed. A protocol
+bump breaking three other teams' jobs that write the same silver table is an
+incident, and it shows up as a cryptic write failure in a notebook nobody
+touched today — not in the one that actually caused it.
+
+## The one check that catches it before promotion
+
+```python
+spark.sql("DESCRIBE DETAIL my_table").select("minReaderVersion", "minWriterVersion").show()
+```
+
+Run this against any shared table before promoting an Environment that
+enables a newer Delta feature, and compare it against the Runtime version
+every other writer of that table is pinned to. If anything else still writes
+on the older Runtime, the upgrade isn't safe to promote yet — either hold off
+on the feature that raises the protocol version, or upgrade every writer of
+that table together, not one at a time.
+
+<Callout type="warn">
+This is a one-way door. A Delta protocol version only goes up — there's no
+"downgrade the table" step if you promote before every writer is ready. Pin
+Runtimes explicitly on every Environment (never rely on the default, which
+changes under you) so you actually know which jobs are at risk before you
+flip one of them.
+</Callout>
+
+## The rest of the procedure, condensed
+
+1. **Clone the Environment** rather than editing in place — `prod-runtime-1.3`
+   next to `prod-runtime-1.2`, promoted like any other CI/CD item.
+2. **Run the regression set** against the new Environment: row counts, schema
+   hashes, and CU per run against recorded baselines, not a visual check.
+3. **Check the Delta protocol** on every table the upgraded job writes, per
+   above, before the new Environment goes anywhere near prod.
+4. **Flip the Environment binding via a deployment pipeline**, not a manual
+   edit in prod — see [Deployment
+   pipelines](/docs/cicd/deployment-pipelines).
+5. **Keep the old Environment for one full business cycle** (usually a
+   month-end close) before deleting it, so rollback is re-pointing a binding,
+   not rebuilding one.
+
+The behavior-change breakages are worth fixing properly rather than papering
+over — set `spark.sql.legacy.timeParserPolicy` to `CORRECTED` and fix the
+format string rather than reverting to `LEGACY`, migrate off `df.append`
+rather than reaching for a compatibility shim. But check the protocol version
+first. That's the one that isn't your bug to fix alone.
