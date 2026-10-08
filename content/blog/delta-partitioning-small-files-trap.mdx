@@ -1,0 +1,81 @@
+---
+title: "Partitioning a Delta table wrong makes small files worse"
+description: "Partitioning on a high-cardinality column feels like an obvious speed-up. It fragments the table into the small-file problem you were trying to avoid."
+date: "2026-10-08"
+tags: ["delta", "spark", "performance"]
+---
+
+The small-file problem is well understood by the time most teams hit it:
+streaming writes and frequent `MERGE`s produce hundreds of 1–10 MB files,
+query planning spends more time listing and opening files than reading them,
+and the fix is compaction toward a 128–256 MB target. Full detail on
+compaction, Z-order, and liquid clustering is in [Delta table
+optimization](/docs/onelake/delta-optimization). What's less understood is a
+specific way to *cause* the small-file problem while trying to solve a
+different one.
+
+## The instinct that backfires
+
+A query that always filters on `customer_id` feels like a textbook case for
+partitioning — and if `customer_id` has low cardinality (a few hundred
+accounts, say), it is. But partition on a genuinely high-cardinality column —
+customer ID across tens of thousands of customers, a UUID, a timestamp down
+to the second — and Delta creates one partition directory per distinct
+value. Each partition then gets its own small files from every write, because
+a single batch's rows for any one customer rarely add up to a full target
+file size on their own. You've turned one small-file problem into thousands
+of smaller partition-level ones, each too small to be worth compacting
+individually and each adding file-listing overhead the planner has to pay on
+every query.
+
+## What actually belongs in a partition column
+
+The table that matters:
+
+| Technique | Use when | Avoid when |
+| --- | --- | --- |
+| Partitioning | Low-cardinality column, always filtered on it (`event_date`), partitions land above ~1 GB each | High cardinality — this is the trap above |
+| Z-order | 2–4 columns used together in filters, moderate cardinality | Columns change often; Z-order must be re-applied after writes |
+| Liquid clustering | Partition-like skipping without committing to a physical layout | Runtime below 1.3 / Spark 3.5 |
+
+`event_date` is the canonical safe case: bounded cardinality (one partition
+per day), near-universally filtered on in time-series queries, and each
+day's partition naturally accumulates enough writes to reach a reasonable
+file size. `customer_id` almost never clears that bar unless your customer
+count is small enough that you'd question whether partitioning is buying you
+anything in the first place.
+
+## If you already did this
+
+The fix isn't a config flag — it's rewriting the table without the
+partitioning:
+
+```python
+spark.sql("""
+  CREATE TABLE sales.orders_fixed
+  USING DELTA
+  AS SELECT * FROM sales.orders
+""")
+```
+
+Then validate before cutting over, and consider Z-order or liquid clustering
+on the non-partitioned table instead if `customer_id` genuinely drives most
+of your filters — both give you the data-skipping benefit without the
+physical directory-per-value layout that caused the fragmentation.
+
+## Verify before you commit to either
+
+Don't guess which technique a table needs — check what the planner is
+actually doing:
+
+```python
+detail = spark.sql("DESCRIBE DETAIL sales.orders").first()
+print(detail["numFiles"], detail["sizeInBytes"] / detail["numFiles"] / 1e6, "MB avg")
+```
+
+A high `numFiles` count with a small average size is the signal regardless of
+cause — partitioning gone wrong and un-compacted streaming writes look
+identical in this output. Check the partition structure (`SHOW PARTITIONS`)
+before assuming compaction alone will fix it; compacting files within
+thousands of tiny partitions still leaves you with thousands of tiny
+partitions.
