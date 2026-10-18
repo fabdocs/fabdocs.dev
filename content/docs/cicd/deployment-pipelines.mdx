@@ -97,4 +97,7 @@ fab deploy-pipeline "Analytics Pipeline" \
 Deployment pipelines do not keep a version history you can "restore". Rollback =
 deploy the previous known-good state from dev (which you can check out from Git
 at the prior tag) forward again. Tag `main` on every prod release so you can
-reconstruct it.
+reconstruct it. For why this matters more than it sounds like it should —
+and the item-binding trap that can turn a rollback attempt into a second
+incident — see [Fabric deployment pipelines have no rollback
+button](/blog/deployment-pipelines-no-rollback).

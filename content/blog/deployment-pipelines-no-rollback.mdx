@@ -1,0 +1,63 @@
+---
+title: "Fabric deployment pipelines have no rollback button"
+description: "A bad prod deploy doesn't get undone — it gets fixed forward, by redeploying the previous known-good state from dev, which only works if you can find it."
+date: "2026-10-18"
+tags: ["cicd", "deployment", "git"]
+---
+
+**Deployment pipelines** promote items from dev to test to prod, matching by
+name and applying deployment rules to rebind stage-specific values. Full
+model, item bindings, and the gating steps that should sit in front of a
+prod deploy are in [Deployment pipelines](/docs/cicd/deployment-pipelines).
+The assumption worth correcting before you need it under pressure: there is
+no "rollback" action anywhere in this system.
+
+## What actually happens when prod breaks
+
+Most CD tools you've used have some notion of a prior release you can
+revert to with one action. Fabric deployment pipelines don't keep that
+history. There's no button that puts prod back the way it was ten minutes
+ago. The only way back is forward — redeploy a previous state from dev into
+test into prod, the same promotion path you used to get into trouble in the
+first place, just pointed at an earlier commit.
+
+That means "rollback" is really "can you currently reconstruct the
+previous known-good state in dev, right now, under pressure." If you can,
+you have a rollback. If you can't, you don't — and you won't find that out
+until you need it.
+
+## The one habit that makes this actually work
+
+```text
+git tag prod-2026-10-15-a
+git push --tags
+```
+
+Tag `main` on every prod release, before the deploy, not after. When prod
+breaks, the fix is: `git checkout` the previous tag into the dev workspace
+(via an **Update**), then redeploy forward through test into prod exactly
+as normal. Without a tag, "the previous known-good state" is a guess
+reconstructed from memory and commit messages, at the worst possible time
+to be guessing.
+
+## The second thing that breaks a rollback attempt
+
+Even with the right commit checked out, a deploy can still land wrong if
+an item's **binding** between stages has broken — item bindings pair items
+across stages by name so later deploys update rather than duplicate them,
+and that pairing breaks if an item was renamed or recreated since the last
+successful deploy. A "rollback" deploy that silently creates a duplicate
+item instead of updating the existing one isn't a rollback, it's a new
+problem on top of the old one. Check the pipeline's diff view — changed /
+new / unchanged per item — before trusting any deploy, rollback or
+otherwise, and treat an item unexpectedly showing as "new" during what
+should be a revert as a sign the binding broke, not a sign to proceed.
+
+## What this means for the gating you put in front of prod
+
+The manual-approval gate between test and prod isn't just about catching
+bad changes before they ship — it's the only point where a human can
+actually stop a fix-forward loop from compounding. Approving a prod deploy
+under incident pressure without reading the diff is how a rollback attempt
+becomes a second incident. The tag discipline is what makes "forward" fast;
+the diff review is what makes it safe.
