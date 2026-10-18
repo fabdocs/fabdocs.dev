@@ -1,0 +1,74 @@
+---
+title: "Turning V-Order on doesn't touch your existing files"
+description: "Setting the V-Order table property changes how future writes land. It does nothing to the Parquet files already sitting there — those need OPTIMIZE."
+date: "2026-10-18"
+tags: ["onelake", "delta", "power-bi"]
+---
+
+**V-Order** is a write-time Parquet optimization — sorting, row-group
+reordering, dictionary encoding — tuned for the VertiPaq engine behind Power
+BI and the SQL analytics endpoint. The trade is explicit: roughly 10–25% more
+CU on the write, 15–50% less on every Direct Lake or SQL-endpoint read of the
+same data afterward. Full control levels and recommended defaults by table
+role are in [V-Order tuning](/docs/onelake/v-order). Two assumptions about
+how it's enabled are easy to get wrong, and both leave the table in a state
+that looks configured but isn't delivering anything.
+
+## Flipping the property doesn't rewrite anything
+
+```python
+spark.sql("""
+  ALTER TABLE mart.sales_by_day
+  SET TBLPROPERTIES ('delta.parquet.vorder.enabled' = 'true')
+""")
+```
+
+This changes how the table writes *from now on*. It does not touch a single
+byte of the Parquet files already sitting in OneLake from before you ran it.
+If you set this on an existing mart table expecting Direct Lake reads to
+speed up immediately, they won't — every file written before this command is
+exactly as it was, V-Order or not. The table property only governs future
+writes; it's not retroactive, and there's no background job that goes back
+and reprocesses history for you.
+
+To actually apply it to what's already there, you have to force a rewrite:
+
+```python
+spark.sql("ALTER TABLE mart.sales_by_day SET TBLPROPERTIES ('delta.parquet.vorder.enabled' = 'true')")
+spark.sql("OPTIMIZE mart.sales_by_day")   # rewrites files with V-Order applied
+```
+
+`OPTIMIZE` here isn't just compaction housekeeping — it's the step that
+actually encodes the existing data the new way. Skip it, and the setting is
+correctly configured for the future while delivering nothing for the present.
+
+## You might not even have the default you assume
+
+Separately: workspaces created after the 2024 default change ship with
+`spark.sql.parquet.vorder.default` **disabled** for generic Spark workloads.
+If you inherited a workspace and assumed V-Order was on because "that's the
+Fabric default," check before trusting it:
+
+```python
+print(spark.conf.get("spark.sql.parquet.vorder.default", "not set"))
+```
+
+A table with the session default off and no explicit per-table property is
+writing plain Parquet with no V-Order benefit at all, silently, until
+someone checks.
+
+## The actual rollout sequence
+
+1. **Decide per table**, not globally — Direct Lake sources and SQL-endpoint
+   marts want it on; bronze/staging tables written once and read by one
+   nightly Spark job don't need the extra write cost.
+2. **Set the table property explicitly** rather than relying on the session
+   default, so the decision travels with the table regardless of who's
+   running the job.
+3. **For any table that already has data**, follow the property change with
+   `OPTIMIZE` in the same maintenance window — treat "set the property" and
+   "apply it to history" as two separate steps, because Fabric treats them
+   that way.
+4. **Re-check read cost after**, not just that the job succeeded — the
+   property can be set correctly and the rewrite can still be skipped by
+   mistake, and both states run without error.

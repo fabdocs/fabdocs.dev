@@ -57,6 +57,11 @@ spark.sql("ALTER TABLE mart.sales_by_day SET TBLPROPERTIES ('delta.parquet.vorde
 spark.sql("OPTIMIZE mart.sales_by_day")   # rewrites files with V-Order applied
 ```
 
+Setting the property alone is easy to mistake for being done — see [Turning
+V-Order on doesn't touch your existing
+files](/blog/v-order-retrofit-trap) for why the `OPTIMIZE` step isn't
+optional here.
+
 ## Runtime
 
 V-Order is available on all current Fabric Runtimes. New workspaces created
