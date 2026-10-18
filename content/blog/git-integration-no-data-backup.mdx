@@ -1,0 +1,57 @@
+---
+title: "Git-connecting a Fabric workspace doesn't back up your data"
+description: "Notebooks, pipelines, and semantic models round-trip through Git cleanly. A lakehouse's actual table data never does — only its schema and shortcuts."
+date: "2026-10-18"
+tags: ["git", "cicd", "onelake"]
+---
+
+**Git integration** binds a workspace to a repo branch — Commit pushes
+workspace state out, Update pulls it back in, and most item types serialize
+cleanly: notebooks, pipelines, semantic models, reports. Full support matrix
+and the branching model that avoids merge pain is in [Git
+integration](/docs/cicd/git-integration). The gap worth catching before an
+incident, not during one: a lakehouse's Git support is metadata only.
+
+## What "metadata only" actually excludes
+
+When a lakehouse is in a Git-connected workspace, Commit captures the
+lakehouse's **schema and shortcuts** — table definitions, column types,
+pointers to shortcut sources. It does not capture a single row of the actual
+Delta table data sitting in OneLake. That data was never in the repo, isn't
+in any commit, and a `git log` on the lakehouse's folder will show you
+schema changes with no corresponding history of what the table actually
+contained at any point.
+
+This matters because Git integration *feels* like a backup mechanism once
+you're used to it protecting everything else in the workspace. A notebook
+you accidentally broke has full history — check out an earlier commit,
+it's back exactly as it was. A lakehouse you accidentally dropped a table
+from doesn't have that option through Git, ever, because Git never held the
+thing you're trying to recover.
+
+## Where recovery actually comes from instead
+
+- **Delta's own transaction log** — if the table itself still exists and you
+  need a prior version, that's [time travel and
+  VACUUM retention](/docs/onelake/vacuum-and-retention), not Git. This only
+  works if the table wasn't dropped and the version you need hasn't aged out
+  of retention.
+- **A setup/seed notebook**, checked into Git deliberately, that
+  (re)populates a fresh environment's lakehouse from a known source. This is
+  how new environments get usable data at all — Git restores the *notebook
+  that creates the data*, not the data.
+- **Whatever backup story your source systems already have**, if the
+  lakehouse is the only copy of something that didn't originate in Fabric.
+  Git integration was never going to be that story, so this has to be
+  decided on purpose rather than discovered by its absence.
+
+## The check worth doing before you trust a workspace's Git connection
+
+Don't assume "it's Git-connected" means "it's backed up" for every item in
+it. Walk the actual item list against the support matrix — notebooks,
+pipelines, and semantic models get real version history; a lakehouse gets
+schema history and nothing else. If a lakehouse holds data that doesn't
+exist anywhere else and isn't reproducible from a seed notebook, that's a
+gap to close deliberately — a scheduled export, a mirrored copy, a documented
+"this table is irreplaceable, treat it accordingly" — not a gap to find out
+about after someone drops the wrong table assuming Git had it covered.
