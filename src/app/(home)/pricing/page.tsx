@@ -10,7 +10,7 @@ import { AI_FREE_LIMIT, AI_SUBSCRIBER_LIMIT } from '@/lib/ai-limits';
 export const metadata: Metadata = {
   title: 'Pricing',
   description:
-    'fabdocs.dev is free to read. Pro is $5/mo for all 5 downloadable starter kits and a much higher daily limit on the Ask AI assistant — no account, cancel anytime.',
+    'fabdocs.dev is free to read. Buy any starter kit once for $49, or get all 5 plus a much higher Ask AI limit for $5/mo — no account, cancel anytime.',
   alternates: { canonical: '/pricing' },
 };
 
@@ -33,6 +33,10 @@ const FAQS = [
   {
     question: 'What exactly does Pro unlock?',
     answer: `All 5 downloadable starter kits (CI/CD automation, PySpark templates, governance framework, migration toolkits, workspace monitoring), plus a much higher daily limit on the Ask AI assistant — ${AI_SUBSCRIBER_LIMIT} questions per day instead of ${AI_FREE_LIMIT}. Every guide, reference page, playbook, and interactive calculator stays free for everyone — Pro is the packs and the AI limit, nothing else is gated.`,
+  },
+  {
+    question: 'Can I buy just one pack without subscribing?',
+    answer: 'Yes — each of the 5 starter kits is also available as a one-time $49 purchase from its own pack page, no subscription and no recurring charge. That unlocks only that pack; Pro is the better deal once you want more than one, or want the higher AI limit too.',
   },
   {
     question: 'Do I need to create an account?',
@@ -77,8 +81,11 @@ export default async function PricingPage() {
       </h1>
       <p className="mx-auto mt-4 max-w-xl text-fd-muted-foreground">
         The whole manual — every guide, reference, playbook, and calculator — is free,
-        no sign-up. Pro unlocks the 5 downloadable starter kits and raises the
-        daily limit on the AI assistant.
+        no sign-up. Need just one starter kit? Buy it once for $49 from its{' '}
+        <Link href="/packs" className="text-fd-primary underline-offset-2 hover:underline">
+          pack page
+        </Link>
+        . Pro unlocks all 5 plus a much higher Ask AI limit.
       </p>
 
       <div className="mt-12 grid gap-6 text-left sm:grid-cols-2">

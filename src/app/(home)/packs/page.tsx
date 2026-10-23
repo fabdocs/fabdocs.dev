@@ -12,7 +12,7 @@ import { NewsletterSignup } from '@/components/newsletter-signup';
 export const metadata: Metadata = {
   title: 'Starter kits & frameworks',
   description:
-    'Five production-ready packs for Microsoft Fabric: CI/CD automation, PySpark templates, governance & security, migration toolkits, and workspace monitoring — included with Pro.',
+    'Five production-ready packs for Microsoft Fabric: CI/CD automation, PySpark templates, governance & security, migration toolkits, and workspace monitoring. $49 each, or included with Pro.',
   alternates: { canonical: '/packs' },
 };
 
@@ -65,7 +65,7 @@ export default function PacksPage() {
       <div className="max-w-2xl">
         <span className="inline-flex items-center gap-2 rounded-full border border-fd-border bg-fd-card px-3 py-1 text-xs font-medium text-fd-muted-foreground">
           <span className="size-1.5 rounded-full bg-fd-primary" />
-          5 packs · all included with Pro
+          5 packs · $49 each, or all included with Pro
         </span>
         <h1 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
           Starter kits &amp; frameworks
@@ -73,7 +73,8 @@ export default function PacksPage() {
         <p className="mt-4 text-fd-muted-foreground">
           The architectural guides stay free. These are the production-ready
           components that skip the trial and error: tested scripts, templates,
-          and automation — not theory. All five are included with{' '}
+          and automation — not theory. Buy any pack once for $49, or get all
+          five plus 200 AI questions/day with{' '}
           <Link href="/pricing" className="text-fd-primary underline-offset-2 hover:underline">
             Pro
           </Link>

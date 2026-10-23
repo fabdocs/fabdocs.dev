@@ -69,7 +69,7 @@ const sections = [
 const stats = [
   { value: '34+', label: 'production guides' },
   { value: '6', label: 'engineering domains' },
-  { value: '5', label: 'starter kits, included with Pro' },
+  { value: '5', label: 'starter kits, $49 each or with Pro' },
 ];
 
 const packs = [
@@ -299,7 +299,7 @@ spark.sql(`}<S>&quot;OPTIMIZE silver.orders&quot;</S>{`)
               <span className="inline-flex size-10 items-center justify-center rounded-lg bg-fd-primary/10 text-fd-primary ring-1 ring-inset ring-fd-primary/20">
                 <Boxes className="size-5" />
               </span>
-              <div className="font-semibold">5 production-ready packs, included with Pro</div>
+              <div className="font-semibold">5 production-ready packs, $49 each or with Pro</div>
               <p className="text-sm text-fd-muted-foreground">
                 Real, runnable artifacts — not templates you rewrite from
                 scratch: GitHub Actions workflows, tested PySpark notebooks,

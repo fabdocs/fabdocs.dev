@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { zipSync, strToU8 } from 'fflate';
 import { PACKS } from '@/generated/packs';
-import { checkSubscriber } from '@/lib/subscription';
+import { checkPackAccess } from '@/lib/pack-ownership';
 
 export async function GET(req: NextRequest, ctx: RouteContext<'/api/packs/[slug]'>) {
   const { slug } = await ctx.params;
@@ -11,14 +11,17 @@ export async function GET(req: NextRequest, ctx: RouteContext<'/api/packs/[slug]
   }
 
   const devUnlock = process.env.PACKS_DEV_UNLOCK === '1';
-  const subscriber = await checkSubscriber(req);
+  const access = await checkPackAccess(req, slug);
 
-  if (!devUnlock && !subscriber.isSubscriber) {
+  if (!devUnlock && !access.allowed) {
     const res = NextResponse.json(
-      { error: 'This pack is included with Pro. Upgrade to download it.', upgrade: '/pricing' },
+      {
+        error: 'This pack is included with Pro, or available as a one-time purchase.',
+        upgrade: '/pricing',
+      },
       { status: 403 },
     );
-    if (subscriber.setCookieHeader) res.headers.append('Set-Cookie', subscriber.setCookieHeader);
+    if (access.setCookieHeader) res.headers.append('Set-Cookie', access.setCookieHeader);
     return res;
   }
 
@@ -37,6 +40,6 @@ export async function GET(req: NextRequest, ctx: RouteContext<'/api/packs/[slug]
       'Content-Length': String(zipped.byteLength),
     },
   });
-  if (subscriber.setCookieHeader) res.headers.append('Set-Cookie', subscriber.setCookieHeader);
+  if (access.setCookieHeader) res.headers.append('Set-Cookie', access.setCookieHeader);
   return res;
 }

@@ -14,6 +14,11 @@ COOKIE_SIGNING_SECRET=
 # From the Stripe dashboard. Without these, Pro shows "coming soon".
 STRIPE_SECRET_KEY=
 STRIPE_PRICE_ID=
+# One-time $49 Price for a single pack purchase (one Product/Price shared by
+# all 5 packs — which pack was bought travels in the Checkout Session's
+# metadata, not in which Price was used). Without this, packs can only be
+# unlocked via Pro.
+STRIPE_PACK_PRICE_ID=
 # From the Stripe webhook endpoint (events: customer.subscription.*)
 STRIPE_WEBHOOK_SECRET=
 

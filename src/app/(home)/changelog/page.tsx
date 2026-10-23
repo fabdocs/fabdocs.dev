@@ -14,6 +14,12 @@ interface Entry {
 
 const ENTRIES: Entry[] = [
   {
+    date: '2026-10-23',
+    items: [
+      'Packs can now be bought individually for $49 each, one-time, with no subscription — Pro ($5/mo) still includes all 5 plus the higher Ask AI limit.',
+    ],
+  },
+  {
     date: '2026-09-17',
     items: [
       'Site-wide accuracy pass: corrected inaccurate code examples and unverified claims found during an internal review — a broken hero code sample, a pricing-page inconsistency, and a dangerous VACUUM example among them.',

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { Check } from 'lucide-react';
 import { PackDownload } from '@/components/pack-download';
 import { packFileList, PACKS } from '@/generated/packs';
@@ -47,12 +48,14 @@ export default function Page() {
 
       <div className="mt-8">
         {exists ? (
-          <PackDownload slug="cicd-automation" label="Download pack (.zip)" />
+          <Suspense fallback={null}>
+            <PackDownload slug="cicd-automation" label="Download pack (.zip)" />
+          </Suspense>
         ) : (
           <p className="text-sm text-fd-muted-foreground">Packaging in progress.</p>
         )}
         <p className="mt-2 text-xs text-fd-muted-foreground">
-          {files.length} files · included with{' '}
+          {files.length} files · $49 one-time, or included with{' '}
           <Link href="/pricing" className="hover:text-fd-primary">
             Pro
           </Link>{' '}

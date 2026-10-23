@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Download, Loader2, Lock } from 'lucide-react';
 
 type State = 'idle' | 'loading' | 'locked' | 'error';
@@ -9,6 +10,8 @@ type State = 'idle' | 'loading' | 'locked' | 'error';
 export function PackDownload({ slug, label = 'Download pack' }: { slug: string; label?: string }) {
   const [state, setState] = useState<State>('idle');
   const [message, setMessage] = useState('');
+  const [buying, setBuying] = useState(false);
+  const justPurchased = useSearchParams().get('purchased') === '1';
 
   async function download() {
     if (state === 'loading') return;
@@ -44,28 +47,68 @@ export function PackDownload({ slug, label = 'Download pack' }: { slug: string; 
     }
   }
 
+  async function buyPack() {
+    if (buying) return;
+    setBuying(true);
+    setMessage('');
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pack: slug }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setMessage(data.error ?? 'Could not start checkout.');
+        setBuying(false);
+      }
+    } catch {
+      setMessage('Could not start checkout.');
+      setBuying(false);
+    }
+  }
+
   if (state === 'locked') {
     return (
       <div className="rounded-lg border border-fd-primary/40 bg-fd-primary/5 p-4 text-sm">
         <p className="flex items-center gap-2 font-medium">
           <Lock className="size-4 text-fd-primary" />
-          Included with Pro
+          Not unlocked yet
         </p>
         <p className="mt-1 text-fd-muted-foreground">
-          Pro ($5/mo) unlocks every pack plus 200 AI questions/day.
+          Buy this pack once for $49, or get Pro ($5/mo) for every pack plus
+          200 AI questions/day.
         </p>
-        <Link
-          href="/pricing"
-          className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-fd-primary px-4 py-2 text-sm font-semibold text-fd-primary-foreground transition-opacity hover:opacity-90"
-        >
-          See Pricing
-        </Link>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            onClick={buyPack}
+            disabled={buying}
+            className="inline-flex items-center gap-1.5 rounded-full bg-fd-primary px-4 py-2 text-sm font-semibold text-fd-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {buying && <Loader2 className="size-3.5 animate-spin" />}
+            {buying ? 'Loading…' : 'Buy this pack — $49'}
+          </button>
+          <Link
+            href="/pricing"
+            className="text-sm font-medium text-fd-primary hover:underline"
+          >
+            See Pricing →
+          </Link>
+        </div>
+        {message && <p className="mt-2 text-xs text-red-500 dark:text-red-400">{message}</p>}
       </div>
     );
   }
 
   return (
     <div>
+      {justPurchased && (
+        <p className="mb-3 text-sm font-medium text-fd-primary">
+          Payment received — download below.
+        </p>
+      )}
       <button
         onClick={download}
         disabled={state === 'loading'}
