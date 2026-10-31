@@ -93,7 +93,9 @@ belongs together in one unit of work, or when the DAG is dynamic.
 ### Arguments are strings
 
 Everything in `arguments` arrives as a string in the child's parameter cell.
-Parse explicitly:
+Parse explicitly — an unparsed `"false"` is a non-empty string, and Python
+treats it as truthy; see [A Fabric notebook argument of 'false' is still
+truthy](/blog/notebook-argument-string-trap) for exactly how that goes wrong:
 
 ```python
 # child notebook parameter cell

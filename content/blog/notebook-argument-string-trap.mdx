@@ -1,0 +1,85 @@
+---
+title: "A Fabric notebook argument of 'false' is still truthy"
+description: "notebook.run passes every argument as a string, even booleans. An unguarded if full_reload: silently runs the full reload you tried to turn off."
+date: "2026-10-31"
+tags: ["spark", "cicd"]
+---
+
+`notebookutils.notebook.run` is the straightforward way to call one notebook
+from another with arguments — fan out silver/gold builds, pass a run date
+down to a child notebook, that kind of thing. Full call signatures, the
+parallel-DAG form, and the rest of the module are in [notebookutils
+reference](/docs/data-engineering/notebookutils-reference). One fact buried
+in that reference deserves its own warning, because the failure mode it
+causes doesn't look like a bug when it happens — it looks like the job ran
+successfully and did the wrong thing.
+
+## Every argument arrives as a string
+
+```python
+result = notebookutils.notebook.run(
+    "transform_orders",
+    timeoutSeconds=1800,
+    arguments={"run_date": "2026-01-01", "full_reload": "false"},
+)
+```
+
+That `"false"` in the call above is already a string, which is correct and
+deliberate — but it's easy to instead pass a real Python boolean,
+`"full_reload": False`, and assume it survives the trip. It doesn't.
+Everything in `arguments` arrives in the child notebook's parameter cell as
+a string, regardless of what type you passed. A boolean `False` becomes the
+string `"False"`. A number becomes a string. There is no type information
+carried across the call.
+
+## Why this is worse than a normal type bug
+
+In most languages, treating a string where you expected a boolean either
+throws immediately or coerces in an obvious way. Python does neither here.
+The string `"false"` is **non-empty**, and a non-empty string is truthy:
+
+```python
+full_reload = "false"   # what actually arrives in the child notebook
+
+if full_reload:
+    run_full_reload()   # this executes — "false" is truthy
+```
+
+Nothing raises. Nothing logs a warning. The child notebook's `if
+full_reload:` check passes, runs the expensive full reload you specifically
+tried to turn off, and the job reports success — because it did run
+successfully, just not the branch you intended. The failure is entirely in
+the gap between "this looks like a boolean check" and "this is actually a
+non-empty-string check," and nothing about the syntax gives that away at the
+call site.
+
+## The fix is explicit parsing, every time
+
+```python
+# child notebook parameter cell
+full_reload = "false"
+
+# parse before using — never branch on the raw string
+full_reload = full_reload.lower() == "true"
+
+if full_reload:
+    run_full_reload()
+```
+
+Treat every argument a child notebook receives as a string that needs
+explicit conversion, not just the ones you remember are booleans. A numeric
+argument has the same issue in reverse — `"run_days": "7"` needs an
+explicit `int()` before you can do arithmetic with it, and `"7" > 3` is a
+`TypeError` at least, which is the easy version of this bug. The boolean
+case is the dangerous one specifically because Python lets it run without
+complaint.
+
+## Where to actually check this
+
+If you have any notebook orchestration that branches on an argument — full
+reload vs incremental, dry-run vs real, any on/off flag passed down from a
+parent notebook or a pipeline — grep for the parameter cell and confirm
+every boolean-looking argument goes through an explicit `.lower() ==
+"true"` or equivalent before it's used in a condition. A silently-skipped
+`parse` is invisible in code review precisely because the variable name
+already looks like a boolean.
