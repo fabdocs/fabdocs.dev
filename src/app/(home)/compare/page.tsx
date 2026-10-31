@@ -24,6 +24,11 @@ const COMPARISONS = [
     href: '/compare/fabric-vs-power-bi-premium',
     description: 'What changed, whether you still need Premium, and what happens to a P SKU you already own.',
   },
+  {
+    title: 'Fabric vs Azure Synapse Analytics',
+    href: '/compare/fabric-vs-synapse',
+    description: 'What carries over almost unchanged, what needs a genuine rebuild, and whether moving is worth it yet.',
+  },
 ];
 
 export default function ComparePage() {
