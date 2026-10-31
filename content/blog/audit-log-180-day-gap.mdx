@@ -1,0 +1,76 @@
+---
+title: "Fabric's audit log is gone after 180 days by default"
+description: "The unified audit log is Fabric's actual record of who did what. Its default retention is 180 days — not indefinite, and not there when you reach for it later."
+date: "2026-10-31"
+tags: ["governance", "security", "onelake"]
+---
+
+Fabric activity doesn't live in one place. User and admin actions — viewing
+a report, running a notebook, changing a permission, creating an item — land
+in the **Microsoft Purview / M365 unified audit log**. Job runs and refreshes
+show up separately in the Monitoring hub. CU consumption has its own home in
+the Capacity Metrics app. Full source breakdown and retention by source is in
+[Audit logs](/docs/governance/audit-logs). The one fact worth isolating from
+that table: the unified audit log — the record anyone doing a security
+review or incident investigation actually wants — defaults to **180 days**,
+longer only with an add-on or E5 license.
+
+## Why 180 days is easy to not notice
+
+Nothing about the portal tells you retention is finite until you go looking
+for something older than it. A permission change from eight months ago, a
+question about who accessed a regulated workspace last quarter, an
+auditor asking for twelve months of history for a certification — any of
+these can land on a security team's desk with zero warning that the record
+might already be gone. The gap isn't a bug or an outage; it's the default
+working exactly as designed, discovered at the worst possible moment because
+nothing prompts you to check before you need it.
+
+## The adjacent record that doesn't cover for it
+
+The Capacity Metrics app tracks CU consumption by item and operation, and
+it's tempting to treat its activity history as a backup audit trail once
+you've noticed the 180-day ceiling elsewhere. It isn't one — it exists for
+cost and performance, keeps roughly 14–28 days of detail, and its grain is
+coarse (consumption by operation, not "who did what to which object"). If
+your actual need is "prove who touched this workspace and when," the
+Capacity Metrics app answers a different question entirely, at a shorter
+window than the thing you're trying to work around.
+
+## The fix is continuous export, not a longer default
+
+<Callout type="warn">
+Don't wait for a retention add-on or an E5 upgrade to solve this. Continuous
+export to somewhere you control is the only version of this that doesn't
+depend on a license tier staying the same.
+</Callout>
+
+Subscribe the Office 365 Management API's `Audit.General` content type and
+poll the feed into a SIEM — Sentinel, Splunk, whatever your team already
+runs. This is the supported path for continuous ingestion, as opposed to the
+Purview portal's manual search, which is fine for a one-off investigation
+but isn't something you can schedule or alert on.
+
+For regulated workspaces specifically, pair this with **workspace
+monitoring**: enabling it provisions an Eventhouse (a KQL database) that
+Fabric streams engine-level diagnostic logs into — Spark, semantic model,
+Eventhouse activity — with a retention policy you set yourself, not one
+Microsoft sets for you. That's the piece that actually lets you promise "we
+keep 400 days of this" instead of "we keep whatever the current default
+happens to be."
+
+## What a compliance-ready setup actually requires
+
+1. **Continuous export** of the unified audit log to a SIEM — not reliance
+   on 180-day portal retention, ever, regardless of license tier.
+2. **Workspace monitoring enabled on every regulated workspace**, with an
+   explicit Eventhouse retention policy matching your actual requirement.
+3. **Alerting in the SIEM**, not the portal, on permission changes, workspace
+   identity changes, and OneLake security role edits — the portal doesn't
+   alert, it only lets you search after the fact.
+4. **A quarterly access review** that joins "who actually read what" against
+   current role membership, with the evidence exported somewhere that
+   outlives the audit log's own retention window.
+
+The through-line: anything that only lives in the portal is on a clock you
+don't control. Export is the only way to make the clock yours.
