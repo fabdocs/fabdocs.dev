@@ -1,0 +1,77 @@
+---
+title: "mergeSchema never drops a column, even an abandoned one"
+description: "mergeSchema=true adds new columns from incoming data. It never removes one your source stopped sending — that column just quietly goes null forever."
+date: "2026-10-31"
+tags: ["delta", "spark"]
+---
+
+`mergeSchema` is the standard way to let a Delta table absorb new columns
+without a manual `ALTER TABLE`:
+
+```python
+(incoming.write
+    .option("mergeSchema", "true")
+    .mode("append")
+    .saveAsTable(target_table))
+```
+
+The full idempotent-upsert and schema-evolution pattern this fits into is in
+[Production PySpark patterns](/docs/data-engineering/pyspark-patterns),
+which already flags the headline fact: mergeSchema adds columns, it doesn't
+handle type changes or drops. The "drops" half of that is worth sitting with
+longer than one line, because the failure mode is the quiet kind — nothing
+errors, the job keeps succeeding, and the only sign anything happened is a
+column that used to have values and now doesn't.
+
+## What actually happens when a source column disappears
+
+Say an upstream source renames a column, or simply stops populating one it
+used to send. The write with `mergeSchema=true` still succeeds — there's
+nothing to fail on. What happens to the schema:
+
+- Any genuinely new column in the incoming batch gets added, which is
+  exactly what mergeSchema is for.
+- The old column that's no longer in the incoming data is **not removed**
+  from the target table's schema. It never was removed; mergeSchema only
+  ever adds.
+- Every new row written from this point forward gets `NULL` in that old
+  column, because nothing in the incoming data supplies a value for it.
+
+The table now has both the old column (frozen at whatever value it last had,
+permanently null going forward) and, if the source renamed rather than just
+dropped the field, a new column carrying what used to be the old one's data
+under a different name. Nothing about the write tells you this happened.
+
+## Why this is easy to miss for a long time
+
+A query that reads the old column keeps working — it just starts getting
+null for every row after the change, silently blending into whatever null
+handling that query already had (a `COALESCE`, a `WHERE col IS NOT NULL`
+filter, an aggregate that already ignores nulls). None of that raises an
+error or a warning; it just quietly changes what the number means, often
+long before anyone downstream notices the shift wasn't about the business,
+it was about a schema change nobody flagged.
+
+## What to actually check
+
+<Callout type="warn">
+mergeSchema being "on" tells you writes won't fail when new columns show up.
+It tells you nothing about whether an old column silently stopped being
+populated — that's a separate thing to monitor for.
+</Callout>
+
+- **Alert on a column's null rate jumping**, not just on write failures.
+  A column going from near-zero nulls to 100% nulls overnight is the signal
+  mergeSchema itself will never give you.
+- **Treat an upstream rename as a two-sided change**, not a one-sided
+  addition: confirm the old column's last-populated date, and decide
+  explicitly whether to drop it (an actual `ALTER TABLE ... DROP COLUMN`,
+  which mergeSchema won't do for you) or keep it as deliberate history.
+- **Don't rely on mergeSchema for type changes either** — a genuine type
+  change needs an explicit migration notebook with `ALTER TABLE ... ALTER
+  COLUMN` or a versioned rebuild, gated in CI, same as a column drop.
+
+The pattern across both halves of "mergeSchema doesn't handle type changes
+or drops" is the same: mergeSchema is additive-only, by design, and anything
+that isn't a pure addition needs a change you make on purpose, not a flag
+you leave on and trust.

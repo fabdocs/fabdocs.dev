@@ -60,6 +60,9 @@ point.
 `mergeSchema` adds new columns. It does **not** handle type changes or drops.
 For those, write a migration notebook that does an explicit
 `ALTER TABLE ... ALTER COLUMN` or a versioned rebuild, and gate it in CI.
+A column your source stops sending isn't dropped either — it just goes null
+forever, silently; see [mergeSchema never drops a column, even an abandoned
+one](/blog/mergeschema-never-drops-columns).
 </Callout>
 
 For partition-scoped reloads, prefer `replaceWhere` over delete+append:
