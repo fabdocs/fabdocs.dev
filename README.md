@@ -80,7 +80,7 @@ Then point the `fabdocs.dev` custom domain at the Worker under
 ## Ask AI assistant + Pro subscription
 
 An "Ask AI" button on every docs page opens a chat panel (`src/components/ai/search.tsx`)
-that streams from `POST /api/chat` — Claude with a `search` tool grounded in the
+that streams from `POST /api/chat` — an LLM with a `search` tool grounded in the
 docs content (flexsearch over the processed markdown), citing the pages it used.
 
 **Tiers** (`src/lib/ai-limits.ts`): Free = 5 questions/day per IP; **Pro ($5/mo)**

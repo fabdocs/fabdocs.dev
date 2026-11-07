@@ -1,0 +1,75 @@
+---
+title: "A missing Prod variable silently falls back to Default"
+description: "Forget to define a variable in Prod's value set and nothing fails. The deploy succeeds — running on whatever the Default (dev) value happens to be."
+date: "2026-11-07"
+tags: ["cicd", "deployment", "governance"]
+---
+
+A **variable library** holds named variables with a value per stage — the
+same `lakehouse_id` or `notification_email` resolving differently in dev,
+test, and prod, without a deployment rule per consuming item. Full shape and
+how pipelines and notebooks consume it are in [Variable
+libraries](/docs/cicd/variable-libraries). The behavior worth isolating
+before it causes an incident: adding a variable to `Default` doesn't
+guarantee it exists everywhere else, and Fabric doesn't stop you from
+deploying when it doesn't.
+
+## What actually happens on a gap
+
+Add a new variable — say, `notification_email` — while working in the
+`Default` value set. Deploy to test and prod without remembering to also set
+it there. Nothing in that deploy fails. The variable simply **falls back to
+the `Default` value** in every value set that doesn't define it, and the
+pipeline or notebook reading it gets that fallback with no indication
+anything was missing.
+
+For some variables that's harmless — a log-level string, maybe. For others
+it's a real incident waiting to surface:
+
+- A `notification_email` that falls back to a dev team's test inbox means
+  production alerts quietly go nowhere real, discovered only when an
+  incident happens and nobody got paged.
+- A `lakehouse_id` or `adls_landing_path` that falls back to a dev resource
+  means a "prod" pipeline run is actually reading from or writing to a dev
+  lakehouse — the job succeeds, the data just isn't where anyone thinks it
+  is.
+- A `capacity_region` that falls back silently can put data somewhere that
+  violates a residency requirement nobody caught at deploy time because
+  nothing about the deploy looked wrong.
+
+## Why this specific failure mode is easy to miss
+
+The deploy pipeline's diff view shows item changes — new, changed,
+unchanged — not variable-library value-set completeness. A variable gap
+isn't a deployment rule, isn't a binding, and doesn't appear as a change to
+review before promoting. It's an absence, and absences don't show up in a
+diff built to show presence.
+
+<Callout type="warn">
+Treat "the deploy succeeded" and "every variable is actually defined where
+it needs to be" as two separate things to verify. The first is checked for
+you. The second isn't, unless you build the check yourself.
+</Callout>
+
+## The CI check that closes the gap
+
+Add a step before any prod deploy that diffs the variable names across
+value sets and fails if `Prod` (or `Test`) is missing anything `Default`
+has:
+
+```bash
+# Pseudocode — the actual call depends on your variable-library export format.
+# The point: compare the *set of variable names*, not just that the library exists.
+fab export-variable-library --workspace "Analytics - Dev" --library core --value-set Default > default.json
+fab export-variable-library --workspace "Analytics - Prod" --library core --value-set Prod > prod.json
+diff <(jq -r 'keys[]' default.json | sort) <(jq -r 'keys[]' prod.json | sort) \
+  && echo "OK — variable sets match" \
+  || (echo "Prod is missing variables Default has" && exit 1)
+```
+
+Run this in the same gate that already blocks a bad [deployment
+pipeline](/docs/cicd/deployment-pipelines) promotion, not as a separate
+manual step someone has to remember. A silent fallback is specifically the
+kind of gap that a human reviewing a diff won't catch, because there's
+nothing in the diff to catch — the check has to be automated and it has to
+run before the variable set that matters is actually used in production.

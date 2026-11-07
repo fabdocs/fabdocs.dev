@@ -60,7 +60,9 @@ fab set-variable-library-value-set \
 <Callout type="warn">
 A variable that exists in `Default` but is missing from `Prod` falls back to the
 `Default` value silently. Add a CI check that every variable is defined in every
-value set before allowing a prod deploy.
+value set before allowing a prod deploy. See [A missing Prod variable
+silently falls back to Default](/blog/variable-library-silent-fallback) for
+what that actually looks like in production and a check you can drop into CI.
 </Callout>
 
 ## Variable libraries vs. deployment rules
