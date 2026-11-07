@@ -134,6 +134,34 @@ html > body[data-scroll-locked] {
   }
 }
 
+/* Header Tools/More dropdowns — see src/components/site-nav-menu.tsx. */
+.nav-menu-viewport[data-state='open'] {
+  animation: nav-menu-in 160ms ease-out;
+}
+.nav-menu-viewport[data-state='closed'] {
+  animation: nav-menu-out 120ms ease-in forwards;
+}
+
+@keyframes nav-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes nav-menu-out {
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-menu-viewport {
+    animation: none !important;
+  }
+}
+
 /* HomeLayout's sticky navbar (#nd-nav) is z-40, but the Ask AI panel is
    z-30 — on / and /blog the navbar was rendering on top of the panel,
    hiding its header/close button. The Notebook layout (docs pages) uses

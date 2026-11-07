@@ -1,4 +1,5 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
+import { ToolsMenu, MoreMenu } from '@/components/site-nav-menu';
 import { appName, gitConfig } from './shared';
 
 /**
@@ -14,9 +15,12 @@ import { appName, gitConfig } from './shared';
  * no tab row, so Documentation -> /docs (now a proper "where to start"
  * page, not just a card grid) is the more useful first link.
  *
- * A dropdown listing every section used to live here; removed in favor of
- * flat links, matching Kits/Blog/Pricing, since /docs itself already does
- * the wayfinding in one click.
+ * A dropdown listing every docs *section* used to live here and was removed
+ * in favor of flat links, since it just duplicated the tab row docs pages
+ * already have. The Tools/More dropdowns added below are a different thing:
+ * they surface pages that have no top-nav presence on either variant today
+ * (the 5 interactive tools under /docs/tools, plus /compare and /changelog)
+ * rather than re-listing something already one click away.
  */
 export function baseOptions({ variant = 'home' }: { variant?: 'home' | 'docs' } = {}): BaseLayoutProps {
   const isDocs = variant === 'docs';
@@ -41,6 +45,11 @@ export function baseOptions({ variant = 'home' }: { variant?: 'home' | 'docs' } 
       isDocs
         ? { text: 'Glossary', url: '/glossary', active: 'url' }
         : { text: 'Documentation', url: '/docs', active: 'nested-url' },
+      // Desktop: Tools and More are Radix dropdowns (site-nav-menu.tsx).
+      // Mobile: the plain links below them render in Fumadocs' collapsible
+      // menu instead, since the dropdowns are desktop-only (`on: 'nav'`).
+      { type: 'custom', on: 'nav', children: <ToolsMenu /> },
+      { text: 'Tools', url: '/docs/tools', on: 'menu' },
       {
         text: 'Kits',
         url: '/packs',
@@ -56,6 +65,10 @@ export function baseOptions({ variant = 'home' }: { variant?: 'home' | 'docs' } 
         url: '/pricing',
         active: 'url',
       },
+      { type: 'custom', on: 'nav', children: <MoreMenu showGlossary={!isDocs} /> },
+      { text: 'Compare', url: '/compare', on: 'menu' },
+      { text: 'Changelog', url: '/changelog', on: 'menu' },
+      ...(isDocs ? [] : [{ text: 'Glossary', url: '/glossary', on: 'menu' as const }]),
     ],
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
   };
