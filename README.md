@@ -118,11 +118,12 @@ Pro shows "coming soon"; everything else keeps working.
   `BreadcrumbList` on every docs page (`src/lib/seo.ts`, `src/components/json-ld.tsx`).
 - Per-page canonical URLs, OpenGraph, Twitter cards, and generated OG images
   (`/og/docs/**`).
-- **Analytics** is off until you set `NEXT_PUBLIC_CF_BEACON_TOKEN`. Get the token
-  from Cloudflare dashboard → your account → **Web Analytics → Add a site** (or
-  the existing `fabdocs.dev` site) → copy the token from the JS snippet. Add it
-  as an environment variable on the `fabdocs-dev` Worker (Settings → Variables)
-  and redeploy. The beacon script then loads from `src/app/layout.tsx`.
+- **Analytics**: Cloudflare Web Analytics, via a beacon script in
+  `src/app/layout.tsx` gated on `NEXT_PUBLIC_CF_BEACON_TOKEN` (set in
+  `wrangler.jsonc`'s `vars` — safe to commit, it's meant to be publicly
+  visible in the rendered page). To point it at a different site or
+  regenerate the token: Cloudflare dashboard → your account → **Web
+  Analytics** → add/select the site → copy the token out of the JS snippet.
 
 ## Notes
 
@@ -131,3 +132,9 @@ Pro shows "coming soon"; everything else keeps working.
   `/llms-full.txt` are generated too.)
 - Edge middleware (`proxy.ts`) was removed — the Cloudflare adapter can't bundle
   Next 16 node middleware yet. The `.md` rewrite above covers the useful part.
+- The desktop nav's **Tools** and **More** dropdowns
+  (`src/components/site-nav-menu.tsx`) are a custom Radix `NavigationMenu`,
+  not Fumadocs' built-in menu item — Fumadocs anchors its dropdown's popup to
+  the whole nav row rather than the trigger that opened it. Desktop-only
+  (`on: 'nav'` in `src/lib/layout.shared.tsx`); flat equivalents render in
+  Fumadocs' own mobile menu (`on: 'menu'`) instead.
