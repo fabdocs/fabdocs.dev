@@ -1,0 +1,70 @@
+---
+title: "Test every deploy command under the SPN, not your account"
+description: "A deploy script that works fine when you run it yourself can still fail in CI — a service principal can't do everything a user account can."
+date: "2026-11-07"
+tags: ["cicd", "git", "governance"]
+---
+
+The standard GitHub Actions setup for Fabric — a service principal, two
+workflows (validate on PR, deploy on merge), `fabric-cli` driving the
+Fabric REST API — gets you real CI/CD without clicking through the portal
+by hand. Full prerequisites and both workflow files are in [GitHub Actions
+for Fabric](/docs/cicd/github-actions). The line worth not skimming past:
+**SPNs cannot perform every workspace operation a user can.**
+
+## Why "it works" doesn't mean "it'll work in CI"
+
+You build the deploy script, test it by running `fab` commands yourself
+under your own account, everything succeeds, you wire it into the GitHub
+Actions workflow, and ship it. The first time that workflow actually runs
+against the service principal's identity instead of yours is often the
+first real merge to `main` — which means the first time an SPN-only
+permission gap surfaces is during an actual deploy, not during development.
+Your own account and the SPN aren't interchangeable just because both can
+authenticate; they're different identities with a different allowed
+operation surface, and nothing about a command succeeding under one tells
+you it'll succeed under the other.
+
+This is exactly the kind of gap that's invisible until it isn't: the PR
+validation workflow typically only exercises read-ish operations (static
+checks, maybe a login to confirm the SPN can authenticate at all), so it
+can pass cleanly on every PR while the actual deploy-time operations —
+the ones your validate workflow never calls — have never once run under
+the SPN's identity before they run for real.
+
+## What to actually verify, and when
+
+Test every distinct `fab` command your deploy workflow will execute — not
+just that the SPN can log in — against a real test workspace, under the
+SPN specifically, during initial setup. Not as a one-time check before the
+first deploy and then forgotten: any time the deploy script gains a new
+operation (a new item type, a new deployment-pipeline action, anything
+that wasn't already proven under the SPN), that's a new surface to verify
+before it rides along in the next merge to `main`.
+
+<Callout type="warn">
+A command working when you run it manually is evidence about your account's
+permissions, not the SPN's. Don't let a clean manual test substitute for
+running the same command as the SPN before trusting it in a workflow that
+deploys to prod.
+</Callout>
+
+## The related trap: pinning `ms-fabric-cli`
+
+Command names and behavior in `ms-fabric-cli` evolve between versions —
+pin an exact version (`pip install ms-fabric-cli==<x.y.z>`) rather than
+letting CI pull latest, and check `fab --help` deliberately when you do
+upgrade. An unpinned CLI upgrading itself mid-pipeline is the same category
+of problem as the SPN gap above: a workflow that worked yesterday changing
+behavior today, for a reason that has nothing to do with the code you
+actually changed.
+
+## If you're choosing between an SPN and workspace identity
+
+This whole gap is specific to service principals — see [Workspace identity
+vs. service principal for Fabric
+auth](/blog/workspace-identity-vs-service-principal) for when a workspace
+identity is the better default and when an SPN is still the right call
+(cross-tenant access, an identity that needs to outlive the workspace).
+Whichever you use, the same rule applies: verify under the identity that
+will actually run the command, not the one that's convenient to test with.

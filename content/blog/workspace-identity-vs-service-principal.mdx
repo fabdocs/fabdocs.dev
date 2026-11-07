@@ -82,4 +82,6 @@ hardcoding them into the connection.
 Default to workspace identity for same-tenant Azure storage — it's less to
 maintain and nothing to rotate. Reach for a service principal specifically
 when you need an identity that outlives the workspace, or one another tenant
-will actually trust.
+will actually trust — and once you do, see [Test every deploy command under
+the SPN, not your account](/blog/spn-cannot-do-everything) before trusting
+it in a production deploy workflow.

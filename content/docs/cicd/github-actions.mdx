@@ -134,4 +134,7 @@ ms-fabric-cli==<x.y.z>`) and check `fab --help` when upgrading.
 
 - Some item types still lack full API deploy support — check the current matrix.
 - SPNs cannot perform every workspace operation a user can; test each command
-  with the SPN early, not on release day.
+  with the SPN early, not on release day — see [Test every deploy command
+  under the SPN, not your
+  account](/blog/spn-cannot-do-everything) for why this specifically bites
+  during a deploy rather than during development.
