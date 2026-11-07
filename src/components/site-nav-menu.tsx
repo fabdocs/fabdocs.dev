@@ -166,10 +166,7 @@ export function ToolsMenu() {
             </NavigationMenu.Content>
           </NavigationMenu.Item>
         </NavigationMenu.List>
-        <NavigationMenu.Viewport
-          className={viewportClass}
-          style={{ transform: `translateX(${offset}px)` }}
-        />
+        <NavigationMenu.Viewport className={viewportClass} style={{ left: offset }} />
       </NavigationMenu.Root>
     </li>
   );
@@ -205,10 +202,7 @@ export function MoreMenu({ showGlossary }: { showGlossary: boolean }) {
             </NavigationMenu.Content>
           </NavigationMenu.Item>
         </NavigationMenu.List>
-        <NavigationMenu.Viewport
-          className={viewportClass}
-          style={{ transform: `translateX(${offset}px)` }}
-        />
+        <NavigationMenu.Viewport className={viewportClass} style={{ left: offset }} />
       </NavigationMenu.Root>
     </li>
   );
