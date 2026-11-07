@@ -14,6 +14,12 @@
       "id": "e4d1a3da53914754a5150f280174dd97"
     }
   ],
+  "vars": {
+    // Cloudflare Web Analytics beacon token — safe to commit, it's meant to
+    // be publicly visible in the rendered page's <script data-cf-beacon>
+    // tag. See README.md's Analytics section.
+    "NEXT_PUBLIC_CF_BEACON_TOKEN": "db6b34a1826d433fbeefe4a0d84d6144"
+  },
   "observability": {
     "enabled": true
   }
