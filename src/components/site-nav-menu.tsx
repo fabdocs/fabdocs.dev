@@ -29,22 +29,36 @@ import { cn } from '@/lib/cn';
 // after a search bar and the Glossary link, much further right) — opening
 // the panel flush-left under the trigger overflows off the right edge of
 // the viewport on the docs layout. `useClampedOffset` measures the trigger
-// on open and translates the panel just enough to keep it on screen.
+// once on mount (and on resize) and translates the panel just enough to
+// keep it on screen.
+//
+// This is deliberately NOT tied to open/close state. An earlier version
+// made the Root a controlled component (owning `value` itself) purely to
+// know when to re-measure on open — that fought Radix's own internal
+// open/close state machine for no real benefit (the trigger's position
+// doesn't move when the panel opens) and caused the panel to intermittently
+// start closing itself almost immediately after opening. The trigger's
+// position is static apart from a window resize, so there's no need to
+// recompute on every open at all.
 
 const EDGE = 16;
 
-function useClampedOffset(open: boolean, widthPx: number) {
+function useClampedOffset(widthPx: number) {
   const anchorRef = useRef<HTMLLIElement>(null);
   const [offset, setOffset] = useState(0);
 
   useLayoutEffect(() => {
-    if (!open || !anchorRef.current) return;
-    const triggerLeft = anchorRef.current.getBoundingClientRect().left;
-    const panelWidth = Math.min(widthPx, window.innerWidth - EDGE * 2);
-    const desired = triggerLeft;
-    const clamped = Math.max(EDGE, Math.min(desired, window.innerWidth - panelWidth - EDGE));
-    setOffset(clamped - triggerLeft);
-  }, [open, widthPx]);
+    function recompute() {
+      if (!anchorRef.current) return;
+      const triggerLeft = anchorRef.current.getBoundingClientRect().left;
+      const panelWidth = Math.min(widthPx, window.innerWidth - EDGE * 2);
+      const clamped = Math.max(EDGE, Math.min(triggerLeft, window.innerWidth - panelWidth - EDGE));
+      setOffset(clamped - triggerLeft);
+    }
+    recompute();
+    window.addEventListener('resize', recompute);
+    return () => window.removeEventListener('resize', recompute);
+  }, [widthPx]);
 
   return { anchorRef, offset };
 }
@@ -55,8 +69,17 @@ const triggerClass =
 const headingClass =
   'mb-2 px-2.5 font-mono text-[0.68rem] tracking-[0.14em] text-fd-muted-foreground/80 uppercase';
 
+// A fixed width matching the panel's own Content exactly, not Radix's
+// measured `--radix-navigation-menu-viewport-width` var. That var tracks
+// this same element's own rendered size on every open, including whatever
+// residual scale the open/close keyframe animation has applied at the
+// moment Radix's ResizeObserver fires — each reopen measured a slightly
+// smaller box than the last and fed it back in as the new target width, so
+// the panel visibly shrank a little more on every single open until it
+// collapsed to nothing. A static width sidesteps that feedback loop
+// entirely; height is left to size naturally to its content.
 const viewportClass =
-  'nav-menu-viewport absolute left-0 top-full z-50 mt-1 h-(--radix-navigation-menu-viewport-height) w-(--radix-navigation-menu-viewport-width) overflow-hidden rounded-xl border border-fd-border bg-fd-popover text-fd-popover-foreground shadow-2xl shadow-black/20';
+  'nav-menu-viewport absolute left-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-fd-border bg-fd-popover text-fd-popover-foreground shadow-2xl shadow-black/20';
 
 interface NavLinkInfo {
   href: string;
@@ -123,19 +146,13 @@ const TOOLS_WIDTH = 608; // 38rem
 export function ToolsMenu() {
   const pathname = usePathname();
   const active = pathname.startsWith('/docs/tools');
-  const [open, setOpen] = useState(false);
-  const { anchorRef, offset } = useClampedOffset(open, TOOLS_WIDTH);
+  const { anchorRef, offset } = useClampedOffset(TOOLS_WIDTH);
 
   return (
     <li ref={anchorRef} className="relative list-none">
-      <NavigationMenu.Root
-        value={open ? 'tools' : ''}
-        onValueChange={(v) => setOpen(v === 'tools')}
-        delayDuration={80}
-        skipDelayDuration={300}
-      >
+      <NavigationMenu.Root delayDuration={80} skipDelayDuration={300}>
         <NavigationMenu.List>
-          <NavigationMenu.Item value="tools">
+          <NavigationMenu.Item>
             <Trigger active={active}>Tools</Trigger>
             <NavigationMenu.Content>
               <div className="grid w-[min(38rem,calc(100vw-2rem))] grid-cols-1 sm:grid-cols-2">
@@ -166,7 +183,10 @@ export function ToolsMenu() {
             </NavigationMenu.Content>
           </NavigationMenu.Item>
         </NavigationMenu.List>
-        <NavigationMenu.Viewport className={viewportClass} style={{ left: offset }} />
+        <NavigationMenu.Viewport
+          className={cn(viewportClass, 'w-[min(38rem,calc(100vw-2rem))]')}
+          style={{ left: offset }}
+        />
       </NavigationMenu.Root>
     </li>
   );
@@ -176,19 +196,13 @@ const MORE_WIDTH = 224; // 14rem
 
 export function MoreMenu({ showGlossary }: { showGlossary: boolean }) {
   const links = showGlossary ? [...MORE_LINKS_BASE, GLOSSARY_LINK] : MORE_LINKS_BASE;
-  const [open, setOpen] = useState(false);
-  const { anchorRef, offset } = useClampedOffset(open, MORE_WIDTH);
+  const { anchorRef, offset } = useClampedOffset(MORE_WIDTH);
 
   return (
     <li ref={anchorRef} className="relative list-none">
-      <NavigationMenu.Root
-        value={open ? 'more' : ''}
-        onValueChange={(v) => setOpen(v === 'more')}
-        delayDuration={80}
-        skipDelayDuration={300}
-      >
+      <NavigationMenu.Root delayDuration={80} skipDelayDuration={300}>
         <NavigationMenu.List>
-          <NavigationMenu.Item value="more">
+          <NavigationMenu.Item>
             <Trigger>More</Trigger>
             <NavigationMenu.Content>
               <div className="w-56 p-4">
@@ -202,7 +216,7 @@ export function MoreMenu({ showGlossary }: { showGlossary: boolean }) {
             </NavigationMenu.Content>
           </NavigationMenu.Item>
         </NavigationMenu.List>
-        <NavigationMenu.Viewport className={viewportClass} style={{ left: offset }} />
+        <NavigationMenu.Viewport className={cn(viewportClass, 'w-56')} style={{ left: offset }} />
       </NavigationMenu.Root>
     </li>
   );
